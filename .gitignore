@@ -1,6 +1,7 @@
-.vs/
+build/
+ipch/
+lib/
 *.opensdf
 *.sdf
+*.suo
 *.vcxproj.user
-x64/
-ipch/

@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 14
 VisualStudioVersion = 14.0.23107.0
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "XInput1_3", "XInput1_3\XInput1_3.vcxproj", "{85CE2DE0-8805-46E7-B0B0-EAE75589AABF}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "XInput1_3", "XInput1_3.vcxproj", "{85CE2DE0-8805-46E7-B0B0-EAE75589AABF}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

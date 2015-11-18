@@ -1,0 +1,42 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClInclude Include="src/stdafx.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src/targetver.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="3rdparty\DXSDK\Include\XInput.h">
+      <Filter>3rdparty\DXSDK\Include</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="src/dllmain.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src/stdafx.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src/XInput1_3.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="XInput1_3.def" />
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="3rdparty">
+      <UniqueIdentifier>{1e1e2617-7470-433e-a6bf-36c5c23d37a8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="3rdparty\DXSDK">
+      <UniqueIdentifier>{8f229e30-97a3-4b2f-99e8-73c3cf069fbc}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="3rdparty\DXSDK\Include">
+      <UniqueIdentifier>{f7190df6-1966-44a1-a01e-b17457434dc4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src">
+      <UniqueIdentifier>{7ecde3ac-985e-4227-9381-77fec8c7c9fe}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>
