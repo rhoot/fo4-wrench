@@ -1,23 +1,22 @@
-// stdafx.h : include file for standard system include files,
-// or project specific include files that are used frequently, but
-// are changed infrequently
-//
-
 #pragma once
 
-#include "targetver.h"
+#pragma warning(push)
+#pragma warning(disable:4091) // 'typedef ': ignored on left of '' when no variable is declared
 
-#define WIN32_LEAN_AND_MEAN             // Exclude rarely-used stuff from Windows headers
-// Windows Header Files:
+#define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 
-#define REF(...) (void)(__VA_ARGS__)
-
-// TODO: reference additional headers your program requires here
 #include <cassert>
 #include <varargs.h>
 #include <streambuf>
 
+#include <PolyHook.h>
+
+#include "targetver.h"
 #include "XInput.h"
+
+#pragma warning(pop)
+
+#define REF(...) (void)(__VA_ARGS__)
 
 void WriteToLog(const char str[], ...);

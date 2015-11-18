@@ -1,0 +1,17 @@
+﻿Build started 2015-11-18 02:24:00.
+     1>Project "C:\Users\johan\Documents\Visual Studio 2015\Projects\XInput1_3\test\test.vcxproj" on node 2 (Build target(s)).
+     1>ClCompile:
+         C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\bin\x86_amd64\CL.exe /c /Zi /nologo /W3 /WX- /O2 /Oi /GL /D NDEBUG /D _CONSOLE /D _UNICODE /D UNICODE /Gm- /EHsc /MD /GS /Gy /fp:precise /Zc:wchar_t /Zc:forScope /Zc:inline /Fo"x64\Release\\" /Fd"x64\Release\vc140.pdb" /Gd /TP /errorReport:prompt main.cpp
+         main.cpp
+       Link:
+         C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\bin\x86_amd64\link.exe /ERRORREPORT:PROMPT /OUT:"C:\Users\johan\Documents\Visual Studio 2015\Projects\XInput1_3\x64\Release\test.exe" /INCREMENTAL:NO /NOLOGO kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /Debug /PDB:"C:\Users\johan\Documents\Visual Studio 2015\Projects\XInput1_3\x64\Release\test.pdb" /SUBSYSTEM:CONSOLE /OPT:REF /OPT:ICF /LTCG:incremental /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:"C:\Users\johan\Documents\Visual Studio 2015\Projects\XInput1_3\x64\Release\test.lib" /MACHINE:X64 x64\Release\main.obj
+            Creating library C:\Users\johan\Documents\Visual Studio 2015\Projects\XInput1_3\x64\Release\test.lib and object C:\Users\johan\Documents\Visual Studio 2015\Projects\XInput1_3\x64\Release\test.exp
+         Generating code
+         All 7 functions were compiled because no usable IPDB/IOBJ from previous compilation was found.
+         Finished generating code
+         test.vcxproj -> C:\Users\johan\Documents\Visual Studio 2015\Projects\XInput1_3\x64\Release\test.exe
+     1>Done Building Project "C:\Users\johan\Documents\Visual Studio 2015\Projects\XInput1_3\test\test.vcxproj" (Build target(s)).
+
+Build succeeded.
+
+Time Elapsed 00:00:01.05
