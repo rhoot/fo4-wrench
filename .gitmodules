@@ -1,6 +1,3 @@
 [submodule "3rdparty/PolyHook"]
 	path = 3rdparty/PolyHook
 	url = https://github.com/stevemk14ebr/PolyHook.git
-[submodule "3rdparty/capstone"]
-	path = 3rdparty/capstone
-	url = https://github.com/aquynh/capstone.git
