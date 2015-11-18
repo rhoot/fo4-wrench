@@ -14,6 +14,7 @@
 #define REF(...) (void)(__VA_ARGS__)
 
 // TODO: reference additional headers your program requires here
+#include <cassert>
 #include <varargs.h>
 #include <streambuf>
 
