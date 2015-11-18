@@ -1,0 +1,6 @@
+.vs/
+*.opensdf
+*.sdf
+*.vcxproj.user
+x64/
+ipch/
