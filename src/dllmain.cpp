@@ -68,6 +68,7 @@ static void InstallHook() {
         return;
     }
 
+    WriteToLog("Hooking %s at %p\n", name, src);
     hook.SetupHook(src, &T::Hook);
     hook.Hook();
 }
@@ -99,7 +100,7 @@ struct GetXScaleHook : Hook<GetXScaleHook> {
         auto original = GetOriginal(&GetXScaleHook::Hook);
         auto f = (this->*original)();
         printf_s("orig: %f\n", f);
-        return 5.0f;
+        return f;
     }
 };
 

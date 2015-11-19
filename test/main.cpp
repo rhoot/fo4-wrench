@@ -11,7 +11,7 @@ class Matrix2x4 {
     float f_m;
 public:
     Matrix2x4() : f_m(3.14159265f) { }
-    __declspec(dllexport) T GetXScale() const { return f_m; }
+    __declspec(dllexport) __declspec(noinline) T GetXScale() const { return f_m; }
 };
 
 }
