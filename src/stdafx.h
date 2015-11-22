@@ -9,6 +9,7 @@
 #include <cassert>
 #include <varargs.h>
 #include <streambuf>
+#include <intrin.h>
 
 #include <PolyHook.h>
 
