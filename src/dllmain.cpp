@@ -16,13 +16,9 @@ constexpr size_t ArraySize (const T(&)[N]) {
 ///
 
 struct DetourInfo {
-    struct Data {
-        uint8_t trampoline[0x40];
-    };
-
     union {
         uint8_t* buffer;
-        Data*    data;
+        void*    trampoline;
     };
 
     DetourInfo ();
@@ -99,7 +95,6 @@ static DetourInfo Detour (T* src, T* dst) {
 
     // Allocate trampoline memory
     const size_t allocSize = 0x1000;
-    static_assert(allocSize >= sizeof(DetourInfo::Data), "buffer too small");
 
     MEMORY_BASIC_INFORMATION mbi;
     for (auto addr = (uintptr_t)src; addr > (uintptr_t)src - 0x80000000; addr = (uintptr_t)mbi.BaseAddress - 1) {
@@ -131,16 +126,16 @@ static DetourInfo Detour (T* src, T* dst) {
         return std::move(info);
     }
 
-    memcpy_s(info.data->trampoline, allocSize, src, length);
-    memcpy_s(info.data->trampoline + length, allocSize - length, detour, ArraySize(detour));
-    *(uintptr_t*)(info.data->trampoline + length + 3) = (uintptr_t)src + length;
+    memcpy_s(info.buffer, allocSize, src, length);
+    memcpy_s(info.buffer + length, allocSize - length, detour, ArraySize(detour));
+    *(uintptr_t*)(info.buffer + length + 3) = (uintptr_t)src + length;
 
     // Build a far jump to the destination
     uint8_t farJump[6];
     farJump[0] = 0xff;
     farJump[1] = 0x25;
-    *(int32_t*)(farJump + 2) = RelativePtr<int32_t>((intptr_t)src, (intptr_t)(info.data->trampoline + length + 16), 6);
-    *(uintptr_t*)(info.data->trampoline + length + 16) = (uintptr_t)dst;
+    *(int32_t*)(farJump + 2) = RelativePtr<int32_t>((intptr_t)src, (intptr_t)(info.buffer + length + 16), 6);
+    *(uintptr_t*)(info.buffer + length + 16) = (uintptr_t)dst;
 
     // Patch the source
     DWORD protection = 0;
@@ -159,6 +154,7 @@ static DetourInfo Detour (T* src, T* dst) {
 ///
 
 #define LOG(fmt, ...)   Log::Write(__FUNCTION__, fmt, ##__VA_ARGS__)
+#define ERR(fmt, ...)   Log::Write(__FUNCTION__, "ERR: " fmt, ##__VA_ARGS__)
 
 namespace Log {
     
@@ -197,40 +193,6 @@ namespace Log {
             va_end(args);
 
             WriteFile(s_handle, buffer, len, &len, nullptr);
-        }
-    }
-
-}
-
-
-///
-// Init
-///
-
-namespace Init {
-    
-    static HANDLE s_event;
-    static long   s_done;
-
-    static void Wait () {
-        if (!s_done) {
-            WaitForSingleObject(s_event, INFINITE);
-            _InterlockedExchange(&s_done, 1);
-        }
-    }
-
-    static void Init () {
-        s_event = CreateEventA(nullptr, TRUE, FALSE, nullptr);
-    }
-
-    static void Flag () {
-        SetEvent(s_event);
-    }
-
-    static void Destroy () {
-        if (s_event) {
-            CloseHandle(s_event);
-            s_event = nullptr;
         }
     }
 
@@ -329,7 +291,7 @@ template <class F>
 void VfTable::Detour (typename F::Fn* replacement, typename F::Fn** prev) {
     auto src = (typename F::Fn*)m_vftable[F::INDEX];
     auto info = ::Detour(src, replacement);
-    _InterlockedExchange64((LONG64*)prev, (LONG64)info.data->trampoline);
+    _InterlockedExchange64((LONG64*)prev, (LONG64)info.trampoline);
     m_detours.emplace_back(std::move(info));
 }
 
@@ -515,7 +477,6 @@ namespace Scaleform {
         if (!overridden)
             LOG("Using requested scale mode: mode=%u, filename=%s", mode, filename);
 
-        Init::Wait();
         s_origSetViewScaleMode(movie, mode);
     }
 
@@ -562,144 +523,20 @@ namespace Scaleform {
 
 namespace Dx {
 
-    struct DxData {
-        ID3D11DeviceContext* context;
-        ID3D11Device* device;
-        HWND window;
-        const char* className;
-        HMODULE module;
-    };
-
     struct MappedBuffers {
         ID3D11Buffer* buffer;
         D3D11_MAPPED_SUBRESOURCE data;
     };
 
-    using PSSetConstantBuffers = Function<16, void(ID3D11DeviceContext*, UINT, UINT, ID3D11Buffer* const*)>;
-    using Map = Function<14, HRESULT(ID3D11DeviceContext*, ID3D11Resource*, UINT, D3D11_MAP, UINT, D3D11_MAPPED_SUBRESOURCE*)>;
-    using Unmap = Function<15, void(ID3D11DeviceContext*, ID3D11Resource*, UINT)>;
-    using CreateBuffer = Function<3, HRESULT(ID3D11Device*, D3D11_BUFFER_DESC*, D3D11_SUBRESOURCE_DATA*, ID3D11Buffer**)>;
+    using Map_t = Function<14, HRESULT(ID3D11DeviceContext*, ID3D11Resource*, UINT, D3D11_MAP, UINT, D3D11_MAPPED_SUBRESOURCE*)>;
+    using Unmap_t = Function<15, void(ID3D11DeviceContext*, ID3D11Resource*, UINT)>;
+    using D3D11CreateDeviceAndSwapChain_t = decltype(D3D11CreateDeviceAndSwapChain);
 
-    static Map::Fn* s_map;
-    static Unmap::Fn* s_unmap;
-    static CreateBuffer::Fn* s_createBuffer;
+    static D3D11CreateDeviceAndSwapChain_t* s_createDevice;
+    static Map_t::Fn* s_map;
+    static Unmap_t::Fn* s_unmap;
 
     static MappedBuffers s_mappedData[8];
-
-    static DxData& Destroy (DxData& data) {
-        if (data.device) {
-            data.device->Release();
-            data.device = nullptr;
-        }
-        if (data.context) {
-            data.context->Release();
-            data.context = nullptr;
-        }
-        if (data.window) {
-            DestroyWindow(data.window);
-            data.window = nullptr;
-        }
-        if (data.className) {
-            UnregisterClassA(data.className, data.module);
-            data.className = nullptr;
-        }
-        data.module = nullptr;
-        return data;
-    }
-
-    static DxData Init () {
-        static const char s_className[] = "FO4_21:9_Inject";
-        static const char s_windowName[] = "";
-
-        DxData data;
-        memset(&data, 0, sizeof(data));
-
-        auto d3d11 = GetModuleHandleA("d3d11");
-        if (!d3d11) {
-            LOG("ERR: d3d11 not loaded");
-            return Destroy(data);
-        }
-
-        using D3D11CreateDeviceAndSwapChain_t = decltype(D3D11CreateDeviceAndSwapChain);
-        auto createDeviceAndSwapChain = (D3D11CreateDeviceAndSwapChain_t*)GetProcAddress(d3d11, "D3D11CreateDeviceAndSwapChain");
-        if (!createDeviceAndSwapChain) {
-            LOG("ERR: Cannot find D3D11CreateDeviceAndSwapChain");
-            return Destroy(data);
-        }
-
-        // Register window class
-        data.module = GetModuleHandleA(nullptr);
-
-        WNDCLASSEXA wc;
-        memset(&wc, 0, sizeof(wc));
-        wc.cbSize = sizeof(wc);
-        wc.style = CS_HREDRAW | CS_VREDRAW;
-        wc.lpfnWndProc = DefWindowProcA;
-        wc.hInstance = data.module;
-        wc.hCursor = LoadCursor(nullptr, nullptr);
-        wc.lpszClassName = s_className;
-        wc.hIconSm = LoadIcon(nullptr, IDI_APPLICATION);
-
-        if (!RegisterClassExA(&wc)) {
-            LOG("Failed to register window class");
-            return Destroy(data);
-        }
-
-        data.className = s_className;
-
-        // Create window
-        data.window = CreateWindowExA(0,
-                                      s_className,
-                                      s_windowName,
-                                      WS_POPUP,
-                                      CW_USEDEFAULT,
-                                      CW_USEDEFAULT,
-                                      CW_USEDEFAULT,
-                                      CW_USEDEFAULT,
-                                      nullptr,
-                                      nullptr,
-                                      data.module,
-                                      nullptr);
-
-        if (!data.window) {
-            LOG("Cannot create window");
-            return Destroy(data);
-        }
-        
-        // Init DX
-        DXGI_SWAP_CHAIN_DESC scd;
-        memset(&scd, 0, sizeof(scd));
-        scd.BufferCount = 1;
-        scd.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-        scd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-        scd.OutputWindow = data.window;
-        scd.SampleDesc.Count = 1;
-        scd.Windowed = TRUE;
-        scd.BufferDesc.ScanlineOrdering = DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED;
-        scd.BufferDesc.Scaling = DXGI_MODE_SCALING_UNSPECIFIED;
-        scd.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
-
-        auto featureLevel = D3D_FEATURE_LEVEL_11_0;
-        auto result = createDeviceAndSwapChain(nullptr,
-                                                D3D_DRIVER_TYPE_HARDWARE,
-                                                nullptr,
-                                                0,
-                                                &featureLevel,
-                                                1,
-                                                D3D11_SDK_VERSION,
-                                                &scd,
-                                                nullptr,
-                                                &data.device,
-                                                nullptr,
-                                                &data.context);
-
-        if (FAILED(result)) {
-            LOG("Failed to initialize d3d11: %lx", result);
-            return Destroy(data);
-        }
-
-        return data;
-    }
 
     static HRESULT DeviceContext_Map_Hook (ID3D11DeviceContext*      context,
                                            ID3D11Resource*           resource,
@@ -707,7 +544,6 @@ namespace Dx {
                                            D3D11_MAP                 mapType,
                                            UINT                      mapFlags,
                                            D3D11_MAPPED_SUBRESOURCE* mappedResource) {
-        Init::Wait();
         auto result = s_map(context, resource, subResource, mapType, mapFlags, mappedResource);
 
         if (SUCCEEDED(result)) {
@@ -788,68 +624,83 @@ namespace Dx {
             }
         }
 
-        Init::Wait();
         s_unmap(context, resource, subResource);
     }
 
-    static HRESULT Device_CreateBuffer_Hook (ID3D11Device*           device,
-                                             D3D11_BUFFER_DESC*      desc,
-                                             D3D11_SUBRESOURCE_DATA* data,
-                                             ID3D11Buffer**          buffer) {
-        //const auto isBackdropBuffer = desc->ByteWidth == 0x230
-        //                           && desc->Usage == D3D11_USAGE_DYNAMIC
-        //                           && desc->BindFlags == D3D11_BIND_CONSTANT_BUFFER
-        //                           && desc->CPUAccessFlags == D3D11_CPU_ACCESS_WRITE
-        //                           && desc->MiscFlags == 0
-        //                           && desc->StructureByteStride == 0;
+    static HRESULT CreateDeviceAndSwapChain_Hook (IDXGIAdapter*               pAdapter,
+                                                  D3D_DRIVER_TYPE             DriverType,
+                                                  HMODULE                     Software,
+                                                  UINT                        Flags,
+                                                  const D3D_FEATURE_LEVEL*    pFeatureLevels,
+                                                  UINT                        FeatureLevels,
+                                                  UINT                        SDKVersion,
+                                                  const DXGI_SWAP_CHAIN_DESC* pSwapChainDesc,
+                                                  IDXGISwapChain**            ppSwapChain,
+                                                  ID3D11Device**              ppDevice,
+                                                  D3D_FEATURE_LEVEL*          pFeatureLevel,
+                                                  ID3D11DeviceContext**       ppImmediateContext) {
+        //Init::Wait();
+        auto result = s_createDevice(pAdapter,
+                                     DriverType,
+                                     Software,
+                                     Flags,
+                                     pFeatureLevels,
+                                     FeatureLevels,
+                                     SDKVersion,
+                                     pSwapChainDesc,
+                                     ppSwapChain,
+                                     ppDevice,
+                                     pFeatureLevel,
+                                     ppImmediateContext);
 
-        //if (isBackdropBuffer) {
-        //    if (!data) {
-        //        LOG("No data");
-        //    } else {
-        //        const auto floats = (float*)data->pSysMem;
-        //        LOG("%f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f",
-        //            floats[8],
-        //            floats[9],
-        //            floats[10],
-        //            floats[11],
-        //            floats[12],
-        //            floats[13],
-        //            floats[14],
-        //            floats[15],
-        //            floats[16],
-        //            floats[17],
-        //            floats[18],
-        //            floats[19]);
-        //    }
-        //}
+        if (FAILED(result)) {
+            ERR("Failed to create D3D device: %#lx", result);
+            return result;
+        }
 
-        Init::Wait();
-        return s_createBuffer(device, desc, data, buffer);
-    }
-
-    // Init thread
-    static void SetupHooks () {
-        auto data = Init();
-
-        if (data.context) {
+        if (ppImmediateContext && *ppImmediateContext) {
             // This VfTable needs to be static so we keep the trampoline memory valid even after
             // leaving this function. It is *not* safe to use after leaving this function however
             // (the pointed to virtual table has been deallocated), and as such should not be
             // globally accessible.
-            static VfTable s_contextTable(*(void***)data.context);
-            // s_psSetConstantBuffers = s_contextTable.Detour<PSSetConstantBuffers>(DeviceContext_PSSetConstantBuffers_Hook);
-            s_contextTable.Detour<Map>(DeviceContext_Map_Hook, &s_map);
-            s_contextTable.Detour<Unmap>(DeviceContext_Unmap_Hook, &s_unmap);
+            static VfTable s_vftable(*(void***)*ppImmediateContext);
+            s_vftable.Detour<Map_t>(DeviceContext_Map_Hook, &s_map);
+            s_vftable.Detour<Unmap_t>(DeviceContext_Unmap_Hook, &s_unmap);
+        } else {
+            ERR("No device context");
         }
 
-        if (data.device) {
+        if (ppSwapChain && *ppSwapChain) {
             // Same deal as for data.context above.
-            static VfTable s_deviceTable(*(void***)data.device);
-            s_deviceTable.Detour<CreateBuffer>(Device_CreateBuffer_Hook, &s_createBuffer);
+            static VfTable s_vftable(*(void***)*ppSwapChain);
+            // TODO: Detect resizes
+        } else {
+            ERR("No swap chain");
         }
 
-        Destroy(data);
+        return result;
+    }
+
+    // Init thread
+    static void SetupHooks () {
+        static DetourInfo s_detour;
+
+        // We probably maybe shouldn't do this in DllMain, but whatevs... Works on my machine! (?°?°.)?
+
+        auto d3d = GetModuleHandleA("d3d11");
+        if (!d3d) {
+            ERR("No d3d available.");
+            return;
+        }
+
+        auto proc = (D3D11CreateDeviceAndSwapChain_t*)GetProcAddress(d3d, "D3D11CreateDeviceAndSwapChain");
+        if (!proc) {
+            ERR("Could not find `D3D11CreateDeviceAndSwapChain'");
+            return;
+        }
+
+        s_detour = Detour(proc, CreateDeviceAndSwapChain_Hook);
+        s_createDevice = (D3D11CreateDeviceAndSwapChain_t*)s_detour.trampoline;
     }
 
 }
@@ -1033,9 +884,8 @@ namespace Test {
     static DetourInfo s_testDetour;
 
     static int Test (int a, int b) {
-        auto prev = (void*)s_testDetour.data->trampoline;
-        auto func = (decltype(Test)*)prev;
-        return func(a, b);
+        auto prev = (decltype(Test)*)s_testDetour.trampoline;
+        return prev(a, b);
     }
     
     static void SetupHooks () {
@@ -1049,13 +899,6 @@ namespace Test {
 
 }
 
-DWORD WINAPI InitThread (void*) {
-    Scaleform::SetupHooks();
-    Dx::SetupHooks();
-    Init::Flag();
-    return 0;
-}
-
 
 BOOL APIENTRY DllMain (HMODULE hModule,
                        DWORD   ul_reason_for_call,
@@ -1065,22 +908,13 @@ BOOL APIENTRY DllMain (HMODULE hModule,
     switch (ul_reason_for_call)
     {
         case DLL_PROCESS_ATTACH:
-            Init::Init();
             Log::Open("hook.log");
-            //Test::SetupHooks();
-
-            // Apparently you're not supposed to call `CreateThread` from DllMain... YOLO?
-            CreateThread(nullptr, 0, InitThread, nullptr, 0, nullptr);
-
-            // This empty sleep is to give the init thread some breathing room on CPUs with fewer
-            // cores, by allowing a context switch.
-            Sleep(0);
-
+            Scaleform::SetupHooks();
+            Dx::SetupHooks();
             break;
 
         case DLL_PROCESS_DETACH:
             Log::Close();
-            Init::Destroy();
             break;
 
         case DLL_THREAD_ATTACH:
