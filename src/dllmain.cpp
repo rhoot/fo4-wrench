@@ -858,14 +858,14 @@ namespace Dx {
             // globally accessible.
             static VfTable s_contextTable(*(void***)data.context);
             // s_psSetConstantBuffers = s_contextTable.Detour<PSSetConstantBuffers>(DeviceContext_PSSetConstantBuffers_Hook);
-            //s_contextTable.Detour<Map>(DeviceContext_Map_Hook, &s_map);
+            s_contextTable.Detour<Map>(DeviceContext_Map_Hook, &s_map);
             s_contextTable.Detour<Unmap>(DeviceContext_Unmap_Hook, &s_unmap);
         }
 
         if (data.device) {
             // Same deal as for data.context above.
             static VfTable s_deviceTable(*(void***)data.device);
-            //s_deviceTable.Detour<CreateBuffer>(Device_CreateBuffer_Hook, &s_createBuffer);
+            s_deviceTable.Detour<CreateBuffer>(Device_CreateBuffer_Hook, &s_createBuffer);
         }
 
         Destroy(data);
@@ -1088,7 +1088,7 @@ BOOL APIENTRY DllMain (HMODULE hModule,
             Log::Open("hook.log");
             //Test::SetupHooks();
             CreateThread(nullptr, 0, InitThread, nullptr, 0, nullptr);
-            Sleep(2000);
+            Sleep(0);
             break;
 
         case DLL_PROCESS_DETACH:
