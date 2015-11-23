@@ -10,8 +10,12 @@
 #include <varargs.h>
 #include <streambuf>
 #include <intrin.h>
+#include <vector>
+
+#include <d3d11.h>
 
 #include <PolyHook.h>
+#undef Detour
 
 #include "targetver.h"
 #include "XInput.h"
