@@ -242,7 +242,7 @@ static IMAGE_SECTION_HEADER* FindSection (const char* name,
                                     name,
                                     (int)length,
                                     (const char*)section->Name,
-                                    (int)sizeof(section->Name));
+                                    (int)ArraySize(section->Name));
         if (match == CSTR_EQUAL)
             return section;
     }
