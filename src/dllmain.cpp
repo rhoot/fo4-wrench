@@ -196,7 +196,7 @@ namespace Log {
         }
     }
 
-}
+} // namespace Log
 
 
 ///
@@ -374,15 +374,6 @@ namespace Scaleform {
         MovieDef* movieDef;
         uint8_t padding2[0xC0];
         float ViewportMatrix[8];
-        //uint8_t padding2[]
-        //Viewport viewport;
-        //float pixelScale;
-        //float viewScaleX;
-        //float viewScaleY;
-        //float viewOffsetX;
-        //float viewOffsetY;
-        //ViewScaleMode viewScaleMode;
-        //uint32_t alignType;
     };
 
     static Movie::SetViewport::Fn*      s_origSetViewport;
@@ -395,57 +386,6 @@ namespace Scaleform {
 
     static void Movie_SetViewport_Hook (Movie&    movie,
                                         Viewport& viewport) {
-        //static const char * s_files[] = {
-        //    "Interface/ScopeMenu.swf",
-        //};
-
-        //auto filename = GetMovieFilename(movie);
-
-        //for (auto & file : s_files) {
-        //    if (strcmp(file, filename) == 0) {
-        //        LOG("%s:", file);
-        //        LOG("Viewport(%u, %u, %u, %u, %u, %u, %u, %u, %u, %u, %x, %f, %f)",
-        //            viewport.bufferWidth,
-        //            viewport.bufferHeight,
-        //            viewport.left,
-        //            viewport.top,
-        //            viewport.width,
-        //            viewport.height,
-        //            viewport.clipLeft,
-        //            viewport.clipTop,
-        //            viewport.clipWidth,
-        //            viewport.clipHeight,
-        //            viewport.flags,
-        //            viewport.scale,
-        //            viewport.aspectRatio);
-        //    }
-        //}
-
-        // 16:9-IFY!
-        //const auto maxWidth = viewport.bufferHeight * 16 / 9;
-        //const auto maxHeight = viewport.bufferWidth * 9 / 16;
-
-        //if (viewport.width > maxWidth) {
-        //    viewport.left += (viewport.width - maxWidth) / 2;
-        //    viewport.width = maxWidth;
-        //}
-
-        //if (viewport.height > maxHeight) {
-        //    viewport.top += (viewport.height - maxHeight) / 2;
-        //    viewport.height = maxHeight;
-        //}
-
-        //LOG("Matrix(%f, %f, %f, %f, %f, %f, %f, %f), %s",
-        //    movie.ViewportMatrix[0],
-        //    movie.ViewportMatrix[1],
-        //    movie.ViewportMatrix[2],
-        //    movie.ViewportMatrix[3],
-        //    movie.ViewportMatrix[4],
-        //    movie.ViewportMatrix[5],
-        //    movie.ViewportMatrix[6],
-        //    movie.ViewportMatrix[7],
-        //    filename);
-
         s_origSetViewport(movie, viewport);
     }
 
@@ -509,12 +449,11 @@ namespace Scaleform {
             // Movie vtable
             const auto vtable = (void**)(imageBase + rdata->VirtualAddress + 0x2DDBB0);
             VfTable vftable(vtable);
-            vftable.Hook<Movie::SetViewport>(Movie_SetViewport_Hook, &s_origSetViewport);
             vftable.Hook<Movie::SetViewScaleMode>(Movie_SetViewScaleMode_Hook, &s_origSetViewScaleMode);
         }
     }
     
-}
+} // namespace Scaleform
 
 
 ///
@@ -703,181 +642,12 @@ namespace Dx {
         s_createDevice = (D3D11CreateDeviceAndSwapChain_t*)s_detour.trampoline;
     }
 
-}
-
-//
-//
-//static void* FindExact (uintptr_t      address,
-//                        uintptr_t      term,
-//                        const uint8_t* data,
-//                        size_t         bytes) {
-//    for (; address + bytes <= term; ++address) {
-//        if (memcmp((void*)address, data, bytes) == 0)
-//            return (void*)address;
-//    }
-//    return nullptr;
-//}
-//
-//
-//
-//
-//static const char* FindString(IMAGE_SECTION_HEADER* section,
-//    const char*           string) {
-//    auto length = strlen(string);
-//    auto address = (uintptr_t)GetImageBase() + section->VirtualAddress;
-//    auto term = address + section->SizeOfRawData;
-//    return (const char*)FindExact(address, term, (const uint8_t*)string, length);
-//}
+} // namespace Dx
 
 
-//
-//static const IMAGE_EXPORT_DIRECTORY* GetExports (const uint8_t* imageBase) {
-//    auto dosHeader = (const IMAGE_DOS_HEADER*)imageBase;
-//    assert(dosHeader->e_magic == IMAGE_DOS_SIGNATURE);
-//
-//    auto ntHeaders = (const IMAGE_NT_HEADERS*)(imageBase + dosHeader->e_lfanew);
-//    assert(ntHeaders->Signature == IMAGE_NT_SIGNATURE);
-//    assert(ntHeaders->OptionalHeader.NumberOfRvaAndSizes > 0);
-//
-//    return (const IMAGE_EXPORT_DIRECTORY*)(imageBase +
-//        ntHeaders->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].VirtualAddress);
-//}
-//
-//
-//static void* FindExport (const char exportName[]) {
-//    auto imageBase = (const uint8_t*)GetModuleHandleA(nullptr);
-//    assert(imageBase != nullptr);
-//
-//    auto exports = GetExports(imageBase);
-//    auto names = (const uint32_t*)(imageBase + exports->AddressOfNames);
-//    auto ordinals = (const uint16_t*)(imageBase + exports->AddressOfNameOrdinals);
-//    auto functions = (const uint32_t*)(imageBase + exports->AddressOfFunctions);
-//
-//    for (DWORD i = 0; i < exports->NumberOfNames; ++i) {
-//        auto name = (const char *)(imageBase + names[i]);
-//
-//        auto result = CompareStringA(LOCALE_INVARIANT,
-//                                     0,
-//                                     name,
-//                                     -1,
-//                                     exportName,
-//                                     -1);
-//
-//        if (result == CSTR_EQUAL) {
-//            auto ordinal = ordinals[i];
-//            auto function = (void*)(imageBase + functions[ordinal]);
-//            return function;
-//        }
-//    }
-//
-//    return nullptr;
-//}
-//
-//template <class T>
-//static void InstallHook() {
-//    auto & hook = T::Get();
-//    auto * name = T::GetExportName();
-//    auto * src = FindExport(name);
-//
-//    if (!src) {
-//        WriteToLog("Could not find export %s, hook failed.\n", name);
-//        return;
-//    }
-//
-//    WriteToLog("Hooking %s at %p\n", name, src);
-//    hook.SetupHook(src, &T::Hook);
-//    hook.Hook();
-//}
-//
-//template <class T>
-//struct Hook {
-//    static PLH::X64Detour& Get () {
-//        static PLH::X64Detour s_detour;
-//        return s_detour;
-//    }
-//
-//    template <typename Fn>
-//    static Fn GetOriginal (Fn) {
-//        auto & hook = Get();
-//        union { void* v; Fn f; } o;
-//        o.v = hook.GetOriginal<void*>();
-//        return o.f;
-//    }
-//};
-//
-//#define EXPORT_NAME(s)    static const char * GetExportName() { return s; }
-//
-//struct GetXScaleHook : Hook<GetXScaleHook> {
-//    EXPORT_NAME("?GetXScale@?$Matrix2x4@M@Render@Scaleform@@QEBAMXZ");
-//
-//    float m_f;
-//
-//    float Hook () const {
-//        auto original = GetOriginal(&GetXScaleHook::Hook);
-//        auto f = (this->*original)();
-//        printf_s("orig: %f\n", f);
-//        return f;
-//    }
-//};
-
-
-
-
-//template <class T>
-//struct Hook {
-//    static PLH::X64Detour& Get () {
-//        static PLH::X64Detour s_detour;
-//        return s_detour;
-//    }
-//
-//    template <typename Fn>
-//    static Fn GetOriginal (Fn) {
-//        auto & hook = Get();
-//        union { void* v; Fn f; } o;
-//        o.v = hook.GetOriginal<void*>();
-//        return o.f;
-//    }
-//};
-//
-//#define HOOK_PATTERN(x) static const char * GetPattern () { return x; }
-//#define HOOK_MASK(x)    static const char * GetMask () { return x; }
-//
-//struct Viewport {
-//    int      BufferWidth, BufferHeight;
-//    int      Left, Top;
-//    int      Width, Height;
-//    int      ScissorLeft, ScissorTop;
-//    int      ScissorWidth, ScissorHeight;
-//    unsigned Flags;
-//    float Scale;
-//    float AspectRatio;
-//};
-//
-//static_assert(sizeof(Viewport) == 0x34, "bad size");
-//
-//struct CreateInstanceHook : Hook<CreateInstanceHook> {
-//    HOOK_PATTERN("\x8D\x2E\xB6\x0D\xAD\x3A\x93\x00\x00\x00\x00\xAA\x97\xF0\xE7\xF5");
-//    HOOK_MASK("xxxxxxx????xxxxx");
-//
-//    const uint32_t SET_VIEWPORT_INDEX = 12;
-//
-//    void SetViewportHook ()
-//
-//    void* Hook (const void* memParams,
-//                bool        initFirstFrame,
-//                const void* actionControl,
-//                const void* queue) {
-//        static long s_swapped = 0;
-//        static PLH::VFuncSwap s_swap;
-//
-//        auto original = GetOriginal(&CreateInstanceHook::Hook);
-//        auto movie = (this->*original)(memParams, initFirstFrame, actionControl, queue);
-//
-//        if (!_InterlockedExchange(&s_swapped, 1)) {
-//            s_swap.SetupHook((BYTE**)movie, SET_VIEWPORT_INDEX, )
-//        }
-//    }
-//};
+///
+// Test
+///
 
 namespace Test {
 
@@ -897,8 +667,12 @@ namespace Test {
         }
     }
 
-}
+} // namespace Test
 
+
+///
+// Main
+///
 
 BOOL APIENTRY DllMain (HMODULE hModule,
                        DWORD   ul_reason_for_call,
