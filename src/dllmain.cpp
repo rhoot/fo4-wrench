@@ -759,20 +759,28 @@ namespace Dx {
             for (auto& mapped : s_mappedData) {
                 if (mapped.buffer == buffer) {
                     const auto floats = (float*)mapped.data.pData;
-                    //LOG("pData=%p, RowPitch=%u, DepthPitch=%u, floats=%p", mapped.data.pData, mapped.data.RowPitch, mapped.data.DepthPitch, floats);
-                    LOG("%f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f",
-                        floats[8],
-                        floats[9],
-                        floats[10],
-                        floats[11],
-                        floats[12],
-                        floats[13],
-                        floats[14],
-                        floats[15],
-                        floats[16],
-                        floats[17],
-                        floats[18],
-                        floats[19]);
+                    //LOG("%p, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f",
+                    //    buffer,
+                    //    floats[8],
+                    //    floats[9],
+                    //    floats[10],
+                    //    floats[11],
+                    //    floats[12],
+                    //    floats[13],
+                    //    floats[14],
+                    //    floats[15],
+                    //    floats[16],
+                    //    floats[17],
+                    //    floats[18],
+                    //    floats[19]);
+
+                    auto count = int(floats[8] + 0.5f);
+                    for (auto i = 0; i < count; ++i) {
+                        auto v = floats + 12 + i * 4;
+                        v[0] = (v[0] - 0.5f) * 1.34375f + 0.5f;
+                        v[2] = (v[2] - 0.5f) * 1.34375f + 0.5f;
+                    }
+
                     mapped.buffer->Release();
                     mapped.buffer = nullptr;
                     break;
