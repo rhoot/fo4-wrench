@@ -572,7 +572,7 @@ namespace Dx {
 
     struct MappedBuffers {
         ID3D11Buffer* buffer;
-        D3D11_MAPPED_SUBRESOURCE* data;
+        D3D11_MAPPED_SUBRESOURCE data;
     };
 
     using PSSetConstantBuffers = Function<16, void(ID3D11DeviceContext*, UINT, UINT, ID3D11Buffer* const*)>;
@@ -580,7 +580,6 @@ namespace Dx {
     using Unmap = Function<15, void(ID3D11DeviceContext*, ID3D11Resource*, UINT)>;
     using CreateBuffer = Function<3, HRESULT(ID3D11Device*, D3D11_BUFFER_DESC*, D3D11_SUBRESOURCE_DATA*, ID3D11Buffer**)>;
 
-    static PSSetConstantBuffers::Fn* s_psSetConstantBuffers;
     static Map::Fn* s_map;
     static Unmap::Fn* s_unmap;
     static CreateBuffer::Fn* s_createBuffer;
@@ -702,36 +701,6 @@ namespace Dx {
         return data;
     }
 
-    static bool AreEqual (const D3D11_BUFFER_DESC&a, const D3D11_BUFFER_DESC& b) {
-        return memcmp(&a, &b, sizeof(D3D11_BUFFER_DESC)) == 0;
-    }
-
-    static void DeviceContext_PSSetConstantBuffers_Hook (ID3D11DeviceContext* context,
-                                                         UINT                 startSlot,
-                                                         UINT                 numBuffers,
-                                                         ID3D11Buffer* const* buffers) {
-        static D3D11_BUFFER_DESC s_lastDesc = { 0, D3D11_USAGE_DEFAULT, 0, 0, 0, 0 };
-
-        if (startSlot == 0 && numBuffers == 1) {
-            D3D11_BUFFER_DESC desc;
-            buffers[0]->GetDesc(&desc);
-
-            if (!AreEqual(desc, s_lastDesc)) {
-                LOG("D3D11_BUFFER_DESC(%u, %u, %u, %u, %u, %u)",
-                    desc.ByteWidth,
-                    desc.Usage,
-                    desc.BindFlags,
-                    desc.CPUAccessFlags,
-                    desc.MiscFlags,
-                    desc.StructureByteStride);
-                s_lastDesc = desc;
-            }
-        }
-
-        Init::Wait();
-        s_psSetConstantBuffers(context, startSlot, numBuffers, buffers);
-    }
-
     static HRESULT DeviceContext_Map_Hook (ID3D11DeviceContext*      context,
                                            ID3D11Resource*           resource,
                                            UINT                      subResource,
@@ -739,39 +708,43 @@ namespace Dx {
                                            UINT                      mapFlags,
                                            D3D11_MAPPED_SUBRESOURCE* mappedResource) {
         Init::Wait();
-        LOG("%p(%p, %p, %u, %u, %u, %p)", s_map, context, resource, subResource, mapType, mapFlags, mappedResource);
         auto result = s_map(context, resource, subResource, mapType, mapFlags, mappedResource);
 
-        //if (SUCCEEDED(result)) {
-        //    // TODO: Figure out a better way to identify the backdrop buffer
-        //    ID3D11Buffer* buffer = nullptr;
-        //    resource->QueryInterface(&buffer);
+        if (SUCCEEDED(result)) {
+            // TODO: Figure out a better way to identify the backdrop buffer
+            ID3D11Buffer* buffer = nullptr;
+            resource->QueryInterface(&buffer);
 
-        //    if (buffer) {
-        //        D3D11_BUFFER_DESC desc;
-        //        buffer->GetDesc(&desc);
+            if (buffer) {
+                D3D11_BUFFER_DESC desc;
+                buffer->GetDesc(&desc);
 
-        //        const auto isBackdropBuffer = desc.ByteWidth == 0x230
-        //                                   && desc.Usage == D3D11_USAGE_DYNAMIC
-        //                                   && desc.BindFlags == D3D11_BIND_CONSTANT_BUFFER
-        //                                   && desc.CPUAccessFlags == D3D11_CPU_ACCESS_WRITE
-        //                                   && desc.MiscFlags == 0
-        //                                   && desc.StructureByteStride == 0;
+                const auto isBackdropBuffer = desc.ByteWidth == 0x230
+                                           && desc.Usage == D3D11_USAGE_DYNAMIC
+                                           && desc.BindFlags == D3D11_BIND_CONSTANT_BUFFER
+                                           && desc.CPUAccessFlags == D3D11_CPU_ACCESS_WRITE
+                                           && desc.MiscFlags == 0
+                                           && desc.StructureByteStride == 0;
 
-        //        if (isBackdropBuffer) {
-        //            for (auto& mapped : s_mappedData) {
-        //                if (!mapped.buffer) {
-        //                    buffer->AddRef();
-        //                    mapped.buffer = buffer;
-        //                    mapped.data = mappedResource;
-        //                    break;
-        //                }
-        //            }
-        //        }
+                const auto hasData = mappedResource
+                                  && mappedResource->pData
+                                  && mappedResource->RowPitch == 0x230
+                                  && mappedResource->DepthPitch == 0x230;
 
-        //        buffer->Release();
-        //    }
-        //}
+                if (isBackdropBuffer && hasData) {
+                    for (auto& mapped : s_mappedData) {
+                        if (!mapped.buffer) {
+                            buffer->AddRef();
+                            mapped.buffer = buffer;
+                            mapped.data = *mappedResource;
+                            break;
+                        }
+                    }
+                }
+
+                buffer->Release();
+            }
+        }
 
         return result;
     }
@@ -779,33 +752,33 @@ namespace Dx {
     static void DeviceContext_Unmap_Hook (ID3D11DeviceContext* context,
                                           ID3D11Resource*      resource,
                                           UINT                 subResource) {
-        //ID3D11Buffer* buffer = nullptr;
-        //resource->QueryInterface(&buffer);
+        ID3D11Buffer* buffer = nullptr;
+        resource->QueryInterface(&buffer);
 
-        //if (buffer) {
-        //    for (auto& mapped : s_mappedData) {
-        //        if (mapped.buffer == buffer) {
-        //            const auto floats = (float*)mapped.data->pData;
-        //            LOG("%f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f",
-        //                floats[8],
-        //                floats[9],
-        //                floats[10],
-        //                floats[11],
-        //                floats[12],
-        //                floats[13],
-        //                floats[14],
-        //                floats[15],
-        //                floats[16],
-        //                floats[17],
-        //                floats[18],
-        //                floats[19]);
-        //            mapped.buffer->Release();
-        //            mapped.buffer = nullptr;
-        //            mapped.data = nullptr;
-        //            break;
-        //        }
-        //    }
-        //}
+        if (buffer) {
+            for (auto& mapped : s_mappedData) {
+                if (mapped.buffer == buffer) {
+                    const auto floats = (float*)mapped.data.pData;
+                    //LOG("pData=%p, RowPitch=%u, DepthPitch=%u, floats=%p", mapped.data.pData, mapped.data.RowPitch, mapped.data.DepthPitch, floats);
+                    LOG("%f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f",
+                        floats[8],
+                        floats[9],
+                        floats[10],
+                        floats[11],
+                        floats[12],
+                        floats[13],
+                        floats[14],
+                        floats[15],
+                        floats[16],
+                        floats[17],
+                        floats[18],
+                        floats[19]);
+                    mapped.buffer->Release();
+                    mapped.buffer = nullptr;
+                    break;
+                }
+            }
+        }
 
         Init::Wait();
         s_unmap(context, resource, subResource);
@@ -1087,8 +1060,14 @@ BOOL APIENTRY DllMain (HMODULE hModule,
             Init::Init();
             Log::Open("hook.log");
             //Test::SetupHooks();
+
+            // Apparently you're not supposed to call `CreateThread` from DllMain... YOLO?
             CreateThread(nullptr, 0, InitThread, nullptr, 0, nullptr);
+
+            // This empty sleep is to give the init thread some breathing room on CPUs with fewer
+            // cores, by allowing a context switch.
             Sleep(0);
+
             break;
 
         case DLL_PROCESS_DETACH:
