@@ -12,6 +12,146 @@ constexpr size_t ArraySize (const T(&)[N]) {
 
 
 ///
+// Detour
+///
+
+struct DetourInfo {
+    struct Data {
+        uint8_t trampoline[0x40];
+    };
+
+    union {
+        uint8_t* buffer;
+        Data*    data;
+    };
+
+    DetourInfo ();
+    DetourInfo (const DetourInfo&) = delete;
+    DetourInfo (DetourInfo&& source);
+    ~DetourInfo ();
+
+    DetourInfo& operator= (const DetourInfo&) = delete;
+    DetourInfo& operator= (DetourInfo&& source);
+    void Reset ();
+};
+
+DetourInfo::DetourInfo()
+    : buffer(nullptr) {
+}
+
+DetourInfo::DetourInfo (DetourInfo&& source)
+    : buffer(source.buffer) {
+    source.buffer = nullptr;
+}
+
+DetourInfo::~DetourInfo () {
+    Reset();
+}
+
+DetourInfo& DetourInfo::operator= (DetourInfo&& source) {
+    buffer = source.buffer;
+    source.buffer = nullptr;
+    return *this;
+}
+
+void DetourInfo::Reset () {
+    if (buffer) {
+        VirtualFree(buffer, 0, MEM_RELEASE);
+        buffer = nullptr;
+    }
+}
+
+static size_t AsmLength (void* addr, size_t minSize) {
+    // TODO: I should probably set this up in a way so that it doesn't potentially dig into
+    // unassigned memory. Specifically, `ud_set_input_buffer` should get a more reasonable
+    // second parameter...
+    //
+    // Also, this function has the problem where a function can actually be too small, and
+    // it'll just happily keep reading whatever's after it, unless it's an invalid opcode.
+
+    ud_t ud;
+    ud_init(&ud);
+    ud_set_input_buffer(&ud, (const uint8_t*)addr, minSize + 16);
+    ud_set_mode(&ud, 64);
+    ud_set_syntax(&ud, nullptr);
+
+    while (ud_insn_off(&ud) < minSize) {
+        if (!ud_disassemble(&ud))
+            break;
+    }
+
+    return ud_insn_off(&ud);
+}
+
+template <class T>
+static T RelativePtr (intptr_t src, intptr_t dst, size_t extra) {
+    return (T)(dst - src - extra);
+}
+
+template <class T>
+static DetourInfo Detour (T* src, T* dst) {
+    // Based on http://www.unknowncheats.me/forum/c-and-c/134871-64-bit-detour-function.html
+
+    static_assert(sizeof(void*) == 8, "x64 only");
+    DetourInfo info;
+
+    // Allocate trampoline memory
+    const size_t allocSize = 0x1000;
+    static_assert(allocSize >= sizeof(DetourInfo::Data), "buffer too small");
+
+    MEMORY_BASIC_INFORMATION mbi;
+    for (auto addr = (uintptr_t)src; addr > (uintptr_t)src - 0x80000000; addr = (uintptr_t)mbi.BaseAddress - 1) {
+        if (!VirtualQuery((void*)addr, &mbi, sizeof(mbi))) {
+            break;
+        }
+
+        if (mbi.State != MEM_FREE)
+            continue;
+
+        // TODO: Fix bug where this will fail if the current block is too big
+        info.buffer = (uint8_t*)VirtualAlloc(mbi.BaseAddress, allocSize, MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE);
+        if (info.buffer)
+            break;
+    }
+
+    if (!info.buffer)
+        return std::move(info);
+
+    // Save the original code, and apply the detour:
+    //   push   rax
+    //   movabs rax, 0xcccccccccccccccc
+    //   xchg   rax, [rsp]
+    //   ret
+    uint8_t detour[] = { 0x50, 0x48, 0xb8, 0xcc, 0xcc, 0xcc, 0xcc, 0xcc, 0xcc, 0xcc, 0xcc, 0x48, 0x87, 0x04, 0x24, 0xC3 };
+    const auto length = AsmLength(src, 16);
+    if (length < 16) {
+        info.Reset();
+        return std::move(info);
+    }
+
+    memcpy_s(info.data->trampoline, allocSize, src, length);
+    memcpy_s(info.data->trampoline + length, allocSize - length, detour, ArraySize(detour));
+    *(uintptr_t*)(info.data->trampoline + length + 3) = (uintptr_t)src + length;
+
+    // Build a far jump to the destination
+    uint8_t farJump[6];
+    farJump[0] = 0xff;
+    farJump[1] = 0x25;
+    *(int32_t*)(farJump + 2) = (int32_t)((intptr_t)(info.data->trampoline + length + 16) - (intptr_t)src - 6);
+    *(uintptr_t*)(info.data->trampoline + length + 16) = (uintptr_t)dst;
+
+    // `nop` the extra bytes
+    DWORD protection = 0;
+    VirtualProtect(src, 6, PAGE_EXECUTE_READWRITE, &protection);
+    memset((uint8_t*)src + 6, 0x90, length - 6);
+    VirtualProtect(src, 6, protection, &protection);
+    FlushInstructionCache(GetCurrentProcess(), src, length);
+
+    return std::move(info);
+}
+
+
+///
 // Logging
 ///
 
@@ -147,7 +287,7 @@ static IMAGE_SECTION_HEADER* FindSection (const char* name,
 
 class VfTable {
     void ** m_vftable;
-    std::vector<PLH::X64Detour> m_detours;
+    std::vector<DetourInfo> m_detours;
 
 public:
     VfTable ();
@@ -184,12 +324,10 @@ VfTable& VfTable::operator= (void** vftable) {
 
 template <class F>
 void VfTable::Detour (typename F::Fn* replacement, typename F::Fn** prev) {
-    m_detours.emplace_back();
-    auto& detour = m_detours.back();
     auto src = (typename F::Fn*)m_vftable[F::INDEX];
-    detour.SetupHook(src, replacement);
-    detour.Hook();
-    _InterlockedExchange64((LONG64*)prev, (LONG64)detour.GetOriginal<typename F::Fn*>());
+    auto info = ::Detour(src, replacement);
+    _InterlockedExchange64((LONG64*)prev, (LONG64)info.data->trampoline);
+    m_detours.emplace_back(std::move(info));
 }
 
 template <class F>
@@ -906,9 +1044,27 @@ namespace Dx {
 //    }
 //};
 
+namespace Test {
+
+    static int Test (int a, int b) {
+        return a * b;
+    }
+    
+    static void SetupHooks () {
+        auto module = GetModuleHandleA(nullptr);
+        auto proc   = (decltype(Test)*)GetProcAddress(module, "Test");
+
+        if (proc) {
+            static auto s_info = Detour(proc, Test);
+        }
+    }
+
+}
+
 DWORD WINAPI InitThread (void*) {
     Scaleform::SetupHooks();
     Dx::SetupHooks();
+    //Test::SetupHooks();
     Init::Flag();
     return 0;
 }

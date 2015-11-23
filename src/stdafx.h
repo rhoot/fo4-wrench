@@ -14,8 +14,7 @@
 
 #include <d3d11.h>
 
-#include <PolyHook.h>
-#undef Detour
+#include <udis86.h>
 
 #include "targetver.h"
 #include "XInput.h"

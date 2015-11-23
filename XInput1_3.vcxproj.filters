@@ -10,6 +10,27 @@
     <ClInclude Include="3rdparty\DXSDK\Include\XInput.h">
       <Filter>3rdparty\DXSDK\Include</Filter>
     </ClInclude>
+    <ClInclude Include="3rdparty\udis86\libudis86\decode.h">
+      <Filter>3rdparty\udis86\libudis86</Filter>
+    </ClInclude>
+    <ClInclude Include="3rdparty\udis86\libudis86\extern.h">
+      <Filter>3rdparty\udis86\libudis86</Filter>
+    </ClInclude>
+    <ClInclude Include="3rdparty\udis86\libudis86\syn.h">
+      <Filter>3rdparty\udis86\libudis86</Filter>
+    </ClInclude>
+    <ClInclude Include="3rdparty\udis86\libudis86\types.h">
+      <Filter>3rdparty\udis86\libudis86</Filter>
+    </ClInclude>
+    <ClInclude Include="3rdparty\udis86\libudis86\udint.h">
+      <Filter>3rdparty\udis86\libudis86</Filter>
+    </ClInclude>
+    <ClInclude Include="3rdparty\udis86\udis86.h">
+      <Filter>3rdparty\udis86</Filter>
+    </ClInclude>
+    <ClInclude Include="3rdparty\udis86\libudis86\itab.h">
+      <Filter>3rdparty\udis86\libudis86</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src/dllmain.cpp">
@@ -20,6 +41,24 @@
     </ClCompile>
     <ClCompile Include="src/XInput1_3.cpp">
       <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="3rdparty\udis86\libudis86\syn.c">
+      <Filter>3rdparty\udis86\libudis86</Filter>
+    </ClCompile>
+    <ClCompile Include="3rdparty\udis86\libudis86\syn-att.c">
+      <Filter>3rdparty\udis86\libudis86</Filter>
+    </ClCompile>
+    <ClCompile Include="3rdparty\udis86\libudis86\syn-intel.c">
+      <Filter>3rdparty\udis86\libudis86</Filter>
+    </ClCompile>
+    <ClCompile Include="3rdparty\udis86\libudis86\udis86.c">
+      <Filter>3rdparty\udis86\libudis86</Filter>
+    </ClCompile>
+    <ClCompile Include="3rdparty\udis86\libudis86\decode.c">
+      <Filter>3rdparty\udis86\libudis86</Filter>
+    </ClCompile>
+    <ClCompile Include="3rdparty\udis86\libudis86\itab.c">
+      <Filter>3rdparty\udis86\libudis86</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -37,6 +76,12 @@
     </Filter>
     <Filter Include="src">
       <UniqueIdentifier>{7ecde3ac-985e-4227-9381-77fec8c7c9fe}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="3rdparty\udis86">
+      <UniqueIdentifier>{9101139d-4f85-40e4-8473-b689a0f478d1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="3rdparty\udis86\libudis86">
+      <UniqueIdentifier>{5ae411c5-29ad-4273-8b95-5427c7901064}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>

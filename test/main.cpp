@@ -3,27 +3,16 @@
 
 #include <cstdio>
 
-namespace Scaleform {
-namespace Render {
+extern "C" __declspec(dllexport) __declspec(noinline) int Test (int a, int b) {
 
-template <typename T>
-class Matrix2x4 {
-    float f_m;
-public:
-    Matrix2x4() : f_m(3.14159265f) { }
-    __declspec(dllexport) __declspec(noinline) T GetXScale() const { return f_m; }
-};
-
-}
+    return a + b;
 }
 
 int main(int argc,
          char** argv) {
     LoadLibraryA("XInput1_3");
-
-    Scaleform::Render::Matrix2x4<float> m;
-    printf("pi: %f\n", m.GetXScale());
-
+    Sleep(2000);
+    printf("%d\n", Test(2, 3));
     getchar();
 
     return 0;
