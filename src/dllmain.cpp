@@ -48,26 +48,6 @@ namespace Log {
 // Hooking
 ///
 
-static void* HookVTable (void**      table,
-                         size_t      index,
-                         const void* replacement) {
-    const auto addr = table + index;
-    DWORD prevProtection;
-    
-    if (!VirtualProtect(addr, sizeof(*addr), PAGE_READWRITE, &prevProtection)) {
-        LOG("Failed to make %p read/writable (%lu)", addr, GetLastError());
-        return nullptr;
-    }
-
-    const auto prev = (void*)_InterlockedExchange64((LONG64*)addr, (LONG64)replacement);
-
-    if (!VirtualProtect(addr, sizeof(addr), prevProtection, &prevProtection)) {
-        LOG("Failed to restore protection flags for %p (%lu)", addr, GetLastError());
-    }
-
-    return prev;
-}
-
 static void* GetImageBase () {
     static auto s_base = GetModuleHandleA(nullptr);
     assert(s_base != nullptr);
@@ -100,24 +80,56 @@ static IMAGE_SECTION_HEADER* FindSection (const char* name,
     return nullptr;
 }
 
-template <class T, class F>
-struct VTableInvoker;
+class VfTable {
+    void ** m_vftable;
 
-template <class T, class Ret, class... Args>
-struct VTableInvoker<T, Ret(Args...)> {
-    using FnType = Ret(*)(T&, Args...);
+public:
+    VfTable (void** vftable);
 
-    FnType addr;
-    T& obj;
+    template <class F>
+    typename F::Fn* Hook (typename F::Fn replacement);
 
-    VTableInvoker(T& obj, size_t index)
-        : addr((FnType)obj.vftable[index])
-        , obj(obj)
-    { }
+    template <class F, class... Args>
+    typename F::Ret Invoke (Args&&... args);
+};
 
-    Ret Invoke (Args... args) {
-        return (*addr)(obj, args...);
+VfTable::VfTable (void** vftable)
+    : m_vftable(vftable)
+{ }
+
+template <class F>
+typename F::Fn* VfTable::Hook (typename F::Fn replacement) {
+    const auto addr = m_vftable + F::INDEX;
+    DWORD prevProtection;
+
+    if (!VirtualProtect(addr, sizeof(*addr), PAGE_READWRITE, &prevProtection)) {
+        LOG("Failed to make %p read/writable (%lu)", addr, GetLastError());
+        return nullptr;
     }
+
+    const auto prev = (typename F::Fn*)_InterlockedExchange64((LONG64*)addr, (LONG64)replacement);
+
+    if (!VirtualProtect(addr, sizeof(addr), prevProtection, &prevProtection)) {
+        LOG("Failed to restore protection flags for %p (%lu)", addr, GetLastError());
+    }
+
+    return prev;
+}
+
+template <class F, class... Args>
+typename F::Ret VfTable::Invoke (Args&&... args) {
+    auto fn = (typename F::Fn*)m_vftable[F::INDEX];
+    return (*fn)(std::forward<Args>(args)...);
+}
+
+template <size_t I, class F>
+struct Function;
+
+template <size_t I, class R, class... A>
+struct Function<I, R(A...)> {
+    static const size_t INDEX = I;
+    using Ret = R;
+    using Fn = R(A...);
 };
 
 ///
@@ -148,10 +160,15 @@ struct Viewport {
 };
 
 struct MovieDef {
+    using GetFilename = Function<12, const char*(MovieDef&)>;
+
     void** vftable;
 };
 
 struct Movie {
+    using SetViewport = Function<12, void(Movie&, Viewport&)>;
+    using SetViewScaleMode = Function<14, void(Movie&, ViewScaleMode)>;
+
     void** vftable;
     uint8_t padding1[0x40];
     MovieDef* movieDef;
@@ -168,15 +185,12 @@ struct Movie {
     //uint32_t alignType;
 };
 
-using Movie_SetViewport_t = void(*)(Movie&, const Viewport&);
-static Movie_SetViewport_t s_origSetViewport;
-
-using Movie_SetViewScaleMode_t = void(*)(Movie&, ViewScaleMode mode);
-static Movie_SetViewScaleMode_t s_origSetViewScaleMode;
+static Movie::SetViewport::Fn*      s_origSetViewport;
+static Movie::SetViewScaleMode::Fn* s_origSetViewScaleMode;
 
 static const char* GetMovieFilename(const Movie& movie) {
-    auto invoker = VTableInvoker<MovieDef, const char*()>(*movie.movieDef, 12);
-    return invoker.Invoke();
+    VfTable table(movie.movieDef->vftable);
+    return table.Invoke<MovieDef::GetFilename>(*movie.movieDef);
 }
 
 static void Movie_SetViewport_Hook (Movie&    movie,
@@ -268,12 +282,12 @@ static void Movie_SetViewScaleMode_Hook (Movie&        movie,
 
 static void SetupScaleformHooks () {
     const auto rdata = FindSection(".rdata", 6);
-    const auto text = FindSection(".text", 5);
 
     if (rdata) {
         const auto vtableMovie = (void**)((uint8_t*)GetImageBase() + rdata->VirtualAddress + 0x2DDBB0);
-        s_origSetViewport = (Movie_SetViewport_t)HookVTable(vtableMovie, 12, Movie_SetViewport_Hook);
-        s_origSetViewScaleMode = (Movie_SetViewScaleMode_t)HookVTable(vtableMovie, 14, Movie_SetViewScaleMode_Hook);
+        VfTable vftable(vtableMovie);
+        s_origSetViewport = vftable.Hook<Movie::SetViewport>(Movie_SetViewport_Hook);
+        s_origSetViewScaleMode = vftable.Hook<Movie::SetViewScaleMode>(Movie_SetViewScaleMode_Hook);
     }
 }
 
