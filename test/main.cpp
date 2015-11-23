@@ -3,10 +3,14 @@
 
 #include <cstdio>
 
+#pragma optimize("", off)
 extern "C" __declspec(dllexport) __declspec(noinline) int Test (int a, int b) {
-
-    return a + b;
+    int numA = a;
+    int numB = b;
+    int added = a + b;
+    return added;
 }
+#pragma optimize("", on)
 
 int main(int argc,
          char** argv) {

@@ -85,7 +85,9 @@ static size_t AsmLength (void* addr, size_t minSize) {
 
 template <class T>
 static T RelativePtr (intptr_t src, intptr_t dst, size_t extra) {
-    return (T)(dst - src - extra);
+    if (dst < src)
+        return (T)(0 - (src - dst) - extra);
+    return (T)(dst - (src + extra));
 }
 
 template <class T>
@@ -137,12 +139,13 @@ static DetourInfo Detour (T* src, T* dst) {
     uint8_t farJump[6];
     farJump[0] = 0xff;
     farJump[1] = 0x25;
-    *(int32_t*)(farJump + 2) = (int32_t)((intptr_t)(info.data->trampoline + length + 16) - (intptr_t)src - 6);
+    *(int32_t*)(farJump + 2) = RelativePtr<int32_t>((intptr_t)src, (intptr_t)(info.data->trampoline + length + 16), 6);
     *(uintptr_t*)(info.data->trampoline + length + 16) = (uintptr_t)dst;
 
-    // `nop` the extra bytes
+    // Patch the source
     DWORD protection = 0;
     VirtualProtect(src, 6, PAGE_EXECUTE_READWRITE, &protection);
+    memcpy(src, farJump, ArraySize(farJump));
     memset((uint8_t*)src + 6, 0x90, length - 6);
     VirtualProtect(src, 6, protection, &protection);
     FlushInstructionCache(GetCurrentProcess(), src, length);
@@ -812,33 +815,33 @@ namespace Dx {
                                              D3D11_BUFFER_DESC*      desc,
                                              D3D11_SUBRESOURCE_DATA* data,
                                              ID3D11Buffer**          buffer) {
-        const auto isBackdropBuffer = desc->ByteWidth == 0x230
-                                   && desc->Usage == D3D11_USAGE_DYNAMIC
-                                   && desc->BindFlags == D3D11_BIND_CONSTANT_BUFFER
-                                   && desc->CPUAccessFlags == D3D11_CPU_ACCESS_WRITE
-                                   && desc->MiscFlags == 0
-                                   && desc->StructureByteStride == 0;
+        //const auto isBackdropBuffer = desc->ByteWidth == 0x230
+        //                           && desc->Usage == D3D11_USAGE_DYNAMIC
+        //                           && desc->BindFlags == D3D11_BIND_CONSTANT_BUFFER
+        //                           && desc->CPUAccessFlags == D3D11_CPU_ACCESS_WRITE
+        //                           && desc->MiscFlags == 0
+        //                           && desc->StructureByteStride == 0;
 
-        if (isBackdropBuffer) {
-            if (!data) {
-                LOG("No data");
-            } else {
-                const auto floats = (float*)data->pSysMem;
-                LOG("%f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f",
-                    floats[8],
-                    floats[9],
-                    floats[10],
-                    floats[11],
-                    floats[12],
-                    floats[13],
-                    floats[14],
-                    floats[15],
-                    floats[16],
-                    floats[17],
-                    floats[18],
-                    floats[19]);
-            }
-        }
+        //if (isBackdropBuffer) {
+        //    if (!data) {
+        //        LOG("No data");
+        //    } else {
+        //        const auto floats = (float*)data->pSysMem;
+        //        LOG("%f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f",
+        //            floats[8],
+        //            floats[9],
+        //            floats[10],
+        //            floats[11],
+        //            floats[12],
+        //            floats[13],
+        //            floats[14],
+        //            floats[15],
+        //            floats[16],
+        //            floats[17],
+        //            floats[18],
+        //            floats[19]);
+        //    }
+        //}
 
         Init::Wait();
         return s_createBuffer(device, desc, data, buffer);
@@ -855,7 +858,7 @@ namespace Dx {
             // globally accessible.
             static VfTable s_contextTable(*(void***)data.context);
             // s_psSetConstantBuffers = s_contextTable.Detour<PSSetConstantBuffers>(DeviceContext_PSSetConstantBuffers_Hook);
-            s_contextTable.Detour<Map>(DeviceContext_Map_Hook, &s_map);
+            //s_contextTable.Detour<Map>(DeviceContext_Map_Hook, &s_map);
             s_contextTable.Detour<Unmap>(DeviceContext_Unmap_Hook, &s_unmap);
         }
 
@@ -1046,8 +1049,12 @@ namespace Dx {
 
 namespace Test {
 
+    static DetourInfo s_testDetour;
+
     static int Test (int a, int b) {
-        return a * b;
+        auto prev = (void*)s_testDetour.data->trampoline;
+        auto func = (decltype(Test)*)prev;
+        return func(a, b);
     }
     
     static void SetupHooks () {
@@ -1055,7 +1062,7 @@ namespace Test {
         auto proc   = (decltype(Test)*)GetProcAddress(module, "Test");
 
         if (proc) {
-            static auto s_info = Detour(proc, Test);
+            s_testDetour = Detour(proc, Test);
         }
     }
 
@@ -1064,7 +1071,6 @@ namespace Test {
 DWORD WINAPI InitThread (void*) {
     Scaleform::SetupHooks();
     Dx::SetupHooks();
-    //Test::SetupHooks();
     Init::Flag();
     return 0;
 }
@@ -1080,7 +1086,9 @@ BOOL APIENTRY DllMain (HMODULE hModule,
         case DLL_PROCESS_ATTACH:
             Init::Init();
             Log::Open("hook.log");
+            //Test::SetupHooks();
             CreateThread(nullptr, 0, InitThread, nullptr, 0, nullptr);
+            Sleep(2000);
             break;
 
         case DLL_PROCESS_DETACH:
