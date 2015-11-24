@@ -399,22 +399,6 @@ namespace Scaleform {
         Count    = 4
     };
 
-    struct Viewport {
-        uint32_t bufferWidth;
-        uint32_t bufferHeight;
-        uint32_t left;
-        uint32_t top;
-        uint32_t width;
-        uint32_t height;
-        uint32_t clipLeft;
-        uint32_t clipTop;
-        uint32_t clipWidth;
-        uint32_t clipHeight;
-        uint32_t flags;
-        float scale;
-        float aspectRatio;
-    };
-
     struct MovieDef {
         using GetFilename = Function<12, const char*(MovieDef&)>;
 
@@ -422,7 +406,6 @@ namespace Scaleform {
     };
 
     struct Movie {
-        using SetViewport = Function<12, void(Movie&, Viewport&)>;
         using SetViewScaleMode = Function<14, void(Movie&, ViewScaleMode)>;
 
         void** vftable;
@@ -432,17 +415,11 @@ namespace Scaleform {
         float ViewportMatrix[8];
     };
 
-    static Movie::SetViewport::Fn*      s_origSetViewport;
     static Movie::SetViewScaleMode::Fn* s_origSetViewScaleMode;
 
     static const char* GetMovieFilename(const Movie& movie) {
         VfTable table(movie.movieDef->vftable);
         return table.Invoke<MovieDef::GetFilename>(*movie.movieDef);
-    }
-
-    static void Movie_SetViewport_Hook (Movie&    movie,
-                                        Viewport& viewport) {
-        s_origSetViewport(movie, viewport);
     }
 
     static void Movie_SetViewScaleMode_Hook (Movie&        movie,
@@ -482,28 +459,9 @@ namespace Scaleform {
     static void SetupHooks () {
         const auto imageBase = (uintptr_t)GetModuleHandleA(nullptr);
         const auto rdata = FindSection(".rdata", 6);
-        const auto text = FindSection(".text", 5);
-
-        if (text) {
-            auto textStart = imageBase + text->VirtualAddress;
-            auto textTerm = textStart + text->SizeOfRawData;
-
-            // MovieDef vtable
-            auto addr = FindPattern(textStart,
-                                    textTerm,
-                                    "\x40\x53\x48\x83\xEC\x20\x48\x8D\x05\x00\x00\x00\x00\x48\x8B\xD9\x48\x89\x01",
-                                    "xxxxxxxxx????xxxxxx");
-            if (!addr) {
-                LOG("Failed to find MovieDef vtable");
-            } else {
-                auto offset = *(int32_t*)(addr + 9);
-                auto vtable = (void**)(addr + 13 + offset);
-                LOG("MovieDef vtable at %p", vtable);
-            }
-        }
 
         if (rdata) {
-            // Movie vtable
+            // Movie vtable. TODO: Use FindPattern instead of hard-coding the address.
             const auto vtable = (void**)(imageBase + rdata->VirtualAddress + 0x2DDBB0);
             VfTable vftable(vtable);
             vftable.Hook<Movie::SetViewScaleMode>(Movie_SetViewScaleMode_Hook, &s_origSetViewScaleMode);
