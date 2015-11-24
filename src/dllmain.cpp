@@ -12,6 +12,56 @@ constexpr size_t ArraySize (const T(&)[N]) {
 
 
 ///
+// Logging
+///
+
+#define LOG(fmt, ...)   Log::Write(__FUNCTION__, fmt, ##__VA_ARGS__)
+#define ERR(fmt, ...)   Log::Write(__FUNCTION__, "ERR: " fmt, ##__VA_ARGS__)
+
+namespace Log {
+
+    static HANDLE s_handle;
+
+    // Main thread
+    static void Open(const char filename[]) {
+        s_handle = CreateFileA(filename,
+            GENERIC_WRITE,
+            0,
+            nullptr,
+            CREATE_ALWAYS,
+            FILE_ATTRIBUTE_NORMAL,
+            nullptr);
+    }
+
+    // Main thread
+    static void Close() {
+        if (s_handle)
+            CloseHandle(s_handle);
+    }
+
+    // Random threads
+    void Write(const char func[], const char str[], ...) {
+        if (s_handle) {
+            char fmt[0x100];
+            strcpy_s(fmt, func);
+            strcat_s(fmt, ": ");
+            strcat_s(fmt, str);
+            strcat_s(fmt, "\r\n");
+
+            char buffer[0x100];
+            va_list args;
+            va_start(args, str);
+            auto len = (DWORD)vsprintf_s(buffer, fmt, args);
+            va_end(args);
+
+            WriteFile(s_handle, buffer, len, &len, nullptr);
+        }
+    }
+
+} // namespace Log
+
+
+///
 // Detour
 ///
 
@@ -57,6 +107,26 @@ void DetourInfo::Reset () {
     }
 }
 
+static void LogAsm (void* addr, size_t size) {
+    ud_t ud;
+    ud_init(&ud);
+    ud_set_input_buffer(&ud, (const uint8_t*)addr, size);
+    ud_set_mode(&ud, 64);
+    ud_set_syntax(&ud, UD_SYN_INTEL);
+
+    LOG("Assembly at %p (%zu)", addr, size);
+
+    uint32_t count = 0;
+    while (ud_insn_off(&ud) < size) {
+        if (!ud_disassemble(&ud))
+            break;
+        LOG("  %s", ud_insn_asm(&ud));
+        ++count;
+    }
+
+    LOG("%u instructions, %llu bytes", count, ud_insn_off(&ud));
+}
+
 static size_t AsmLength (void* addr, size_t minSize) {
     // TODO: I should probably set this up in a way so that it doesn't potentially dig into
     // unassigned memory. Specifically, `ud_set_input_buffer` should get a more reasonable
@@ -79,6 +149,34 @@ static size_t AsmLength (void* addr, size_t minSize) {
     return ud_insn_off(&ud);
 }
 
+static void* FollowJumps (void* addr) {
+    ud_t ud;
+    ud_init(&ud);
+    ud_set_mode(&ud, 64);
+    ud_set_syntax(&ud, nullptr);
+
+    while (true) {
+        ud_set_input_buffer(&ud, (const uint8_t*)addr, 16);
+        if (!ud_disassemble(&ud)) {
+            ERR("Could not disassemble instruction at %p", addr);
+            return addr;
+        }
+
+        const auto instruction = ud_insn_mnemonic(&ud);
+        if (instruction != UD_Ijmp)
+            return addr;
+
+        const auto param = ud_insn_opr(&ud, 0);
+        if (param->type != UD_OP_JIMM) {
+            ERR("Invalid operand for jump: %u", param->type);
+            return addr;
+        }
+
+        const auto rip = (intptr_t)addr + (intptr_t)ud_insn_len(&ud);
+        addr = (void*)(rip + param->lval.sdword);
+    }
+}
+
 template <class T>
 static T RelativePtr (intptr_t src, intptr_t dst, size_t extra) {
     if (dst < src)
@@ -92,6 +190,11 @@ static DetourInfo Detour (T* src, T* dst) {
 
     static_assert(sizeof(void*) == 8, "x64 only");
     DetourInfo info;
+
+    // MSVC really enjoys creating functions that contain nothing but a jump. That jump alone is
+    // not big enough that we can detour the function. For functions where the very first
+    // instruction is a jump, we therefore follow them and detour the final function.
+    src = (T*)FollowJumps(src);
 
     // Allocate trampoline memory
     const size_t allocSize = 0x1000;
@@ -147,56 +250,6 @@ static DetourInfo Detour (T* src, T* dst) {
 
     return std::move(info);
 }
-
-
-///
-// Logging
-///
-
-#define LOG(fmt, ...)   Log::Write(__FUNCTION__, fmt, ##__VA_ARGS__)
-#define ERR(fmt, ...)   Log::Write(__FUNCTION__, "ERR: " fmt, ##__VA_ARGS__)
-
-namespace Log {
-    
-    static HANDLE s_handle;
-
-    // Main thread
-    static void Open (const char filename[]) {
-        s_handle = CreateFileA(filename,
-                               GENERIC_WRITE,
-                               0,
-                               nullptr,
-                               CREATE_ALWAYS,
-                               FILE_ATTRIBUTE_NORMAL,
-                               nullptr);
-    }
-
-    // Main thread
-    static void Close () {
-        if (s_handle)
-            CloseHandle(s_handle);
-    }
-
-    // Random threads
-    void Write (const char func[], const char str[], ...) {
-        if (s_handle) {
-            char fmt[0x100];
-            strcpy_s(fmt, func);
-            strcat_s(fmt, ": ");
-            strcat_s(fmt, str);
-            strcat_s(fmt, "\r\n");
-
-            char buffer[0x100];
-            va_list args;
-            va_start(args, str);
-            auto len = (DWORD)vsprintf_s(buffer, fmt, args);
-            va_end(args);
-
-            WriteFile(s_handle, buffer, len, &len, nullptr);
-        }
-    }
-
-} // namespace Log
 
 
 ///
@@ -469,13 +522,22 @@ namespace Dx {
 
     using Map_t = Function<14, HRESULT(ID3D11DeviceContext*, ID3D11Resource*, UINT, D3D11_MAP, UINT, D3D11_MAPPED_SUBRESOURCE*)>;
     using Unmap_t = Function<15, void(ID3D11DeviceContext*, ID3D11Resource*, UINT)>;
+    using ResizeBuffers_t = Function<13, HRESULT(IDXGISwapChain*, UINT, UINT, UINT, DXGI_FORMAT, UINT)>;
     using D3D11CreateDeviceAndSwapChain_t = decltype(D3D11CreateDeviceAndSwapChain);
 
     static D3D11CreateDeviceAndSwapChain_t* s_createDevice;
     static Map_t::Fn* s_map;
     static Unmap_t::Fn* s_unmap;
+    static ResizeBuffers_t::Fn* s_resizeBuffers;
 
+    static uint32_t s_width;
+    static uint32_t s_height;
+    static float s_scale;
     static MappedBuffers s_mappedData[8];
+
+    // WARNING: This pointer must NOT be dereferenced, as we did not take a reference to it. It's
+    // *only* used for testing whether other swap chains are referring to the global one.
+    static IDXGISwapChain* s_swapChain;
 
     static HRESULT DeviceContext_Map_Hook (ID3D11DeviceContext*      context,
                                            ID3D11Resource*           resource,
@@ -552,8 +614,8 @@ namespace Dx {
                     auto count = int(floats[8] + 0.5f);
                     for (auto i = 0; i < count; ++i) {
                         auto v = floats + 12 + i * 4;
-                        v[0] = (v[0] - 0.5f) * 1.34375f + 0.5f;
-                        v[2] = (v[2] - 0.5f) * 1.34375f + 0.5f;
+                        v[0] = (v[0] - 0.5f) * s_scale + 0.5f;
+                        v[2] = (v[2] - 0.5f) * s_scale + 0.5f;
                     }
 
                     mapped.buffer->Release();
@@ -564,6 +626,31 @@ namespace Dx {
         }
 
         s_unmap(context, resource, subResource);
+    }
+
+    static HRESULT SwapChain_ResizeBuffers_Hook (IDXGISwapChain* swapChain,
+                                                 UINT            BufferCount,
+                                                 UINT            Width,
+                                                 UINT            Height,
+                                                 DXGI_FORMAT     NewFormat,
+                                                 UINT            SwapChainFlags) {
+        auto result = s_resizeBuffers(swapChain, BufferCount, Width, Height, NewFormat, SwapChainFlags);
+
+        if (swapChain == s_swapChain && SUCCEEDED(result)) {
+            DXGI_SWAP_CHAIN_DESC desc;
+            RECT rect;
+
+            if (SUCCEEDED(swapChain->GetDesc(&desc)) && GetClientRect(desc.OutputWindow, &rect)) {
+                s_width = Width ? Width : rect.right;
+                s_height = Height ? Height : rect.bottom;
+                s_scale = ((float)s_width / (float)s_height) / (16.f / 9.f);
+                LOG("Width=%u, Height=%u, Scale=%f", s_width, s_height, s_scale);
+            } else {
+                ERR("Failed to update aspect ratio");
+            }
+        }
+
+        return result;
     }
 
     static HRESULT CreateDeviceAndSwapChain_Hook (IDXGIAdapter*               pAdapter,
@@ -597,23 +684,42 @@ namespace Dx {
             return result;
         }
 
+        // These VfTables needs to be static so we keep the trampoline memory valid even after
+        // leaving this function. It is *not* safe to use after leaving this function however
+        // (the pointed to virtual table has been deallocated), and as such should not be
+        // globally accessible.
+        static VfTable s_dcVftable;
+        static VfTable s_scVftable;
+
+        s_swapChain = ppSwapChain ? *ppSwapChain : nullptr;
+
+        // The `IsValid()` calls below are really lies. The vftables may be freed already. In these
+        // cases, we really only using them to determine whether we've already detoured the
+        // functions or not. We still should not make any calls using the tables!
         if (ppImmediateContext && *ppImmediateContext) {
-            // This VfTable needs to be static so we keep the trampoline memory valid even after
-            // leaving this function. It is *not* safe to use after leaving this function however
-            // (the pointed to virtual table has been deallocated), and as such should not be
-            // globally accessible.
-            static VfTable s_vftable(*(void***)*ppImmediateContext);
-            s_vftable.Detour<Map_t>(DeviceContext_Map_Hook, &s_map);
-            s_vftable.Detour<Unmap_t>(DeviceContext_Unmap_Hook, &s_unmap);
-        } else {
+            if (!s_dcVftable.IsValid()) {
+                s_dcVftable = *(void***)*ppImmediateContext;
+                s_dcVftable.Detour<Map_t>(DeviceContext_Map_Hook, &s_map);
+                s_dcVftable.Detour<Unmap_t>(DeviceContext_Unmap_Hook, &s_unmap);
+            }
+        } else if (!s_dcVftable.IsValid()) {
             ERR("No device context");
         }
 
-        if (ppSwapChain && *ppSwapChain) {
-            // Same deal as for data.context above.
-            static VfTable s_vftable(*(void***)*ppSwapChain);
-            // TODO: Detect resizes
+        if (pSwapChainDesc) {
+            s_width = pSwapChainDesc->BufferDesc.Width;
+            s_height = pSwapChainDesc->BufferDesc.Height;
+            s_scale = ((float)s_width / (float)s_height) / (16.f / 9.f);
         } else {
+            ERR("Unable to determine aspect ratio");
+        }
+
+        if (ppSwapChain && *ppSwapChain) {
+            if (!s_scVftable.IsValid()) {
+                s_scVftable = *(void***)*ppSwapChain;
+                s_scVftable.Detour<ResizeBuffers_t>(SwapChain_ResizeBuffers_Hook, &s_resizeBuffers);
+            }
+        } else if (!s_scVftable.IsValid()) {
             ERR("No swap chain");
         }
 
