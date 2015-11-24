@@ -1,6 +1,8 @@
 // dllmain.cpp : Defines the entry point for the DLL application.
 #include "stdafx.h"
 
+#include "config.h"
+
 ///
 // Util
 ///
@@ -23,14 +25,14 @@ namespace Log {
     static HANDLE s_handle;
 
     // Main thread
-    static void Open(const char filename[]) {
-        s_handle = CreateFileA(filename,
-            GENERIC_WRITE,
-            0,
-            nullptr,
-            CREATE_ALWAYS,
-            FILE_ATTRIBUTE_NORMAL,
-            nullptr);
+    static void Open(const wchar_t filename[]) {
+        s_handle = CreateFileW(filename,
+                               GENERIC_WRITE,
+                               0,
+                               nullptr,
+                               CREATE_ALWAYS,
+                               FILE_ATTRIBUTE_NORMAL,
+                               nullptr);
     }
 
     // Main thread
@@ -494,7 +496,6 @@ namespace Scaleform {
                 auto offset = *(int32_t*)(addr + 9);
                 auto vtable = (void**)(addr + 13 + offset);
                 LOG("MovieDef vtable at %p", vtable);
-                REF(vtable);
             }
         }
 
@@ -780,15 +781,52 @@ namespace Test {
 // Main
 ///
 
+template <size_t N>
+static size_t BuildPath (const wchar_t name[], wchar_t (&path)[N]) {
+    wchar_t* sysPath = nullptr;
+
+    if (SUCCEEDED(SHGetKnownFolderPath(FOLDERID_Documents, 0, nullptr, &sysPath))) {
+        auto len = swprintf(path, N, L"%s\\My Games\\Fallout4\\%s", sysPath, name);
+        CoTaskMemFree(sysPath);
+        return len;
+    }
+
+    return 0;
+}
+
+static void InitConfig () {
+    Config::Set("Movies.\"Interface/HUDMenu.swf\".ScaleMode",       "ShowAll");
+    Config::Set("Movies.\"Interface/ScopeMenu.swf\".ScaleMode",     "ExactFit");
+    Config::Set("Movies.\"Interface/FaderMenu.swf\".ScaleMode",     "ShowAll");
+    Config::Set("Movies.\"Interface/ButtonBarMenu.swf\".ScaleMode", "ShowAll");
+
+    wchar_t path[MAX_PATH];
+    auto len = BuildPath(L"Wrench.toml", path);
+    if (len && len < ArraySize(path)) {
+        Config::Load(path);
+    }
+
+    Config::Enumerate([] (auto name, auto value) {
+        LOG("name=%s, value=%s", name, value);
+    });
+}
+
+static void InitLog () {
+    wchar_t logPath[MAX_PATH];
+    auto len = BuildPath(L"Wrench.log", logPath);
+    if (len && len < ArraySize(logPath)) {
+        Log::Open(logPath);
+    }
+}
+
 BOOL APIENTRY DllMain (HMODULE hModule,
                        DWORD   ul_reason_for_call,
                        LPVOID  lpReserved) {
-    REF(hModule, lpReserved);
-
     switch (ul_reason_for_call)
     {
         case DLL_PROCESS_ATTACH:
-            Log::Open("hook.log");
+            InitLog();
+            InitConfig();
             Scaleform::SetupHooks();
             Dx::SetupHooks();
             break;

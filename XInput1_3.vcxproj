@@ -99,7 +99,7 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;_USRDLL;XINPUT1_3_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(SolutionDir)3rdparty\DXSDK\Include;$(SolutionDir)3rdparty\udis86;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)3rdparty\DXSDK\Include;$(SolutionDir)3rdparty\udis86;$(SolutionDir)3rdparty\cpptoml\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <ProgramDataBaseFileName>$(OutDir)XInput1_3.pdb</ProgramDataBaseFileName>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <AssemblerOutput>All</AssemblerOutput>
@@ -119,7 +119,7 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>_DEBUG;_WINDOWS;_USRDLL;XINPUT1_3_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(SolutionDir)3rdparty\DXSDK\Include;$(SolutionDir)3rdparty\udis86;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)3rdparty\DXSDK\Include;$(SolutionDir)3rdparty\udis86;$(SolutionDir)3rdparty\cpptoml\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <ProgramDataBaseFileName>$(OutDir)XInput1_3.pdb</ProgramDataBaseFileName>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <AssemblerOutput>All</AssemblerOutput>
@@ -141,7 +141,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;_USRDLL;XINPUT1_3_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(SolutionDir)3rdparty\DXSDK\Include;$(SolutionDir)3rdparty\udis86;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)3rdparty\DXSDK\Include;$(SolutionDir)3rdparty\udis86;$(SolutionDir)3rdparty\cpptoml\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <ProgramDataBaseFileName>$(OutDir)XInput1_3.pdb</ProgramDataBaseFileName>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <AssemblerOutput>All</AssemblerOutput>
@@ -162,7 +162,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>NDEBUG;_WINDOWS;_USRDLL;XINPUT1_3_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(SolutionDir)3rdparty\DXSDK\Include;$(SolutionDir)3rdparty\udis86;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)3rdparty\DXSDK\Include;$(SolutionDir)3rdparty\udis86;$(SolutionDir)3rdparty\cpptoml\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <ProgramDataBaseFileName>$(OutDir)XInput1_3.pdb</ProgramDataBaseFileName>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <AssemblerOutput>All</AssemblerOutput>
@@ -176,6 +176,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="3rdparty\cpptoml\include\cpptoml.h" />
     <ClInclude Include="3rdparty\DXSDK\Include\XInput.h" />
     <ClInclude Include="3rdparty\udis86\libudis86\decode.h" />
     <ClInclude Include="3rdparty\udis86\libudis86\extern.h" />
@@ -186,6 +187,7 @@
     <ClInclude Include="3rdparty\udis86\udis86.h" />
     <ClInclude Include="src/stdafx.h" />
     <ClInclude Include="src/targetver.h" />
+    <ClInclude Include="src\config.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="3rdparty\udis86\libudis86\decode.c">
@@ -261,6 +263,7 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="src/XInput1_3.cpp" />
+    <ClCompile Include="src\config.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="XInput1_3.def" />

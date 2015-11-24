@@ -31,6 +31,12 @@
     <ClInclude Include="3rdparty\udis86\libudis86\itab.h">
       <Filter>3rdparty\udis86\libudis86</Filter>
     </ClInclude>
+    <ClInclude Include="3rdparty\cpptoml\include\cpptoml.h">
+      <Filter>3rdparty\cpptoml\include</Filter>
+    </ClInclude>
+    <ClInclude Include="src\config.h">
+      <Filter>src</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src/dllmain.cpp">
@@ -60,6 +66,7 @@
     <ClCompile Include="3rdparty\udis86\libudis86\itab.c">
       <Filter>3rdparty\udis86\libudis86</Filter>
     </ClCompile>
+    <ClCompile Include="src\config.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="XInput1_3.def" />
@@ -82,6 +89,12 @@
     </Filter>
     <Filter Include="3rdparty\udis86\libudis86">
       <UniqueIdentifier>{5ae411c5-29ad-4273-8b95-5427c7901064}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="3rdparty\cpptoml">
+      <UniqueIdentifier>{d8630a9d-da92-47b4-a8d7-b0d85128bee9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="3rdparty\cpptoml\include">
+      <UniqueIdentifier>{6f5efcd7-d945-404c-8363-bed4604bc0f4}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>
