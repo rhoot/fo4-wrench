@@ -392,10 +392,11 @@ struct Function<I, R(A...)> {
 namespace Scaleform {
 
     enum class ViewScaleMode : uint32_t {
-        NoScale,
-        ShowAll,
-        ExactFit,
-        NoBorder,
+        NoScale  = 0,
+        ShowAll  = 1,
+        ExactFit = 2,
+        NoBorder = 3,
+        Count    = 4
     };
 
     struct Viewport {
@@ -444,35 +445,37 @@ namespace Scaleform {
         s_origSetViewport(movie, viewport);
     }
 
-    struct ScaleModeMapping {
-        const char *  filename;
-        ViewScaleMode mode;
-    };
-
     static void Movie_SetViewScaleMode_Hook (Movie&        movie,
                                              ViewScaleMode mode) {
-        static ScaleModeMapping s_mappings[] = {
-            { "Interface/HUDMenu.swf",       ViewScaleMode::ShowAll  },
-            { "Interface/ScopeMenu.swf",     ViewScaleMode::ExactFit },
-            { "Interface/FaderMenu.swf",     ViewScaleMode::ShowAll  },
-            { "Interface/ButtonBarMenu.swf", ViewScaleMode::ShowAll  },
+        static const char* s_names[(size_t)ViewScaleMode::Count] = {
+            "NoScale",
+            "ShowAll",
+            "ExactFit",
+            "NoBorder",
         };
 
+        auto oldModeStr = (size_t)mode < ArraySize(s_names) ? s_names[(size_t)mode] : "Invalid";
         auto filename = GetMovieFilename(movie);
-        auto overridden = false;
+        auto modeStr = Config::Get({ "Movies", filename, "ScaleMode" });
+        auto newMode = mode;
 
-        for (auto & mapping : s_mappings) {
-            if (strcmp(filename, mapping.filename) == 0) {
-                LOG("Overriding scale mode: old=%u, new=%u, filename=%s", mode, mapping.mode, filename);
-                mode = mapping.mode;
-                overridden = true;
+        if (modeStr) {
+            for (auto i = 0; i < ArraySize(s_names); ++i) {
+                if (strcmp(modeStr, s_names[i]) == 0) {
+                    newMode = (ViewScaleMode)i;
+                    break;
+                }
             }
         }
 
-        if (!overridden)
-            LOG("Using requested scale mode: mode=%u, filename=%s", mode, filename);
+        if (mode != newMode) {
+            auto newModeStr = s_names[(size_t)newMode];
+            LOG("Overriding scale mode: old=%s, new=%s, filename=%s", oldModeStr, newModeStr, filename);
+        } else {
+            LOG("Using default scale mode: mode=%s, filename=%s", oldModeStr, filename);
+        }
 
-        s_origSetViewScaleMode(movie, mode);
+        s_origSetViewScaleMode(movie, newMode);
     }
 
     // New thread
@@ -795,10 +798,10 @@ static size_t BuildPath (const wchar_t name[], wchar_t (&path)[N]) {
 }
 
 static void InitConfig () {
-    Config::Set("Movies.\"Interface/HUDMenu.swf\".ScaleMode",       "ShowAll");
-    Config::Set("Movies.\"Interface/ScopeMenu.swf\".ScaleMode",     "ExactFit");
-    Config::Set("Movies.\"Interface/FaderMenu.swf\".ScaleMode",     "ShowAll");
-    Config::Set("Movies.\"Interface/ButtonBarMenu.swf\".ScaleMode", "ShowAll");
+    Config::Set({ "Movies", "Interface/HUDMenu.swf",       "ScaleMode" }, "ShowAll");
+    Config::Set({ "Movies", "Interface/ScopeMenu.swf",     "ScaleMode" }, "ExactFit");
+    Config::Set({ "Movies", "Interface/FaderMenu.swf",     "ScaleMode" }, "ShowAll");
+    Config::Set({ "Movies", "Interface/ButtonBarMenu.swf", "ScaleMode" }, "ShowAll");
 
     wchar_t path[MAX_PATH];
     auto len = BuildPath(L"Wrench.toml", path);
@@ -806,8 +809,15 @@ static void InitConfig () {
         Config::Load(path);
     }
 
-    Config::Enumerate([] (auto name, auto value) {
-        LOG("name=%s, value=%s", name, value);
+    Config::Enumerate([] (auto path, auto count, auto value) {
+        char buffer[0x100] = { 0 };
+
+        for (auto i = 0; i < count; ++i) {
+            strcat_s(buffer, path[i]);
+            strcat_s(buffer, ":");
+        }
+
+        LOG("Config(%s `%s')", buffer, value);
     });
 }
 
