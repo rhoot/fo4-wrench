@@ -4,6 +4,7 @@
 #include "stdafx.h"
 
 #include "config.h"
+#include "util.h"
 
 extern "C" {
 
@@ -66,15 +67,17 @@ extern "C" {
         const auto configured = config::Get({"XInput", "Path"});
 
         if (configured) {
+            wchar_t str[MAX_PATH];
             MultiByteToWideChar(CP_UTF8,
                                 MB_PRECOMPOSED | MB_ERR_INVALID_CHARS,
                                 configured,
                                 -1,
-                                path,
-                                MAX_PATH);
+                                str,
+                                ArraySize(str));
+            ExpandEnvironmentStringsW(str, path, ArraySize(path));
         } else {
             const auto str = L"%WINDIR%\\system32\\XInput1_3.dll";
-            ExpandEnvironmentStringsW(str, path, MAX_PATH);
+            ExpandEnvironmentStringsW(str, path, ArraySize(path));
         }
 
         if (*path) {
