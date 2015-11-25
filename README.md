@@ -13,6 +13,8 @@ It is implemented as a wrapper around XInput since the game voluntarily loads
 the XInput dll, and the XInput API is tiny enough that wrapping it is just about
 effortless. Simply drop the dll in the game folder to get started.
 
+[Screenshots](#screenshots)
+
 ## Building
 
 MSVC is the only supported compiler, and Visual Studio 2015 *may* be required as
@@ -62,3 +64,23 @@ ScaleMode = "ShowAll"
 
 * [cpptoml](/skystrife/cpptoml)
 * [udis86](/vmt/udis86)
+
+## Screenshots
+
+![](doc/mainmenu-default.jpg)
+Default main menu in 21:9.
+
+![](doc/mainmenu-modded.jpg)
+Default main menu in 21:9, with this mod in its default configuration.
+
+![](doc/hud-default.jpg)
+Default HUD in 21:9.
+
+![](doc/hud-modded.jpg)
+Default HUD in 21:9, with this mod in its default configuration.
+
+![](doc/container-default.jpg)
+Default container UI in 21:9.
+
+![](doc/container-modded.jpg)
+Default container UI in 21:9, with this mod in its default configuration.
