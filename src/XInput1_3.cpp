@@ -73,11 +73,11 @@ extern "C" {
                                 configured,
                                 -1,
                                 str,
-                                ArraySize(str));
-            ExpandEnvironmentStringsW(str, path, ArraySize(path));
+                                (int)ArraySize(str));
+            ExpandEnvironmentStringsW(str, path, (DWORD)ArraySize(path));
         } else {
             const auto str = L"%WINDIR%\\system32\\XInput1_3.dll";
-            ExpandEnvironmentStringsW(str, path, ArraySize(path));
+            ExpandEnvironmentStringsW(str, path, (DWORD)ArraySize(path));
         }
 
         if (*path) {
