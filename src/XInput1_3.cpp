@@ -88,10 +88,12 @@ static void LoadXInput () {
             s_getDSoundAudioDeviceGuids = (decltype(s_getDSoundAudioDeviceGuids))GetProcAddress(s_xinput, "XInputGetDSoundAudioDeviceGuids");
             s_getBatteryInformation     = (decltype(s_getBatteryInformation))GetProcAddress(s_xinput, "XInputGetBatteryInformation");
             s_getKeystroke              = (decltype(s_getKeystroke))GetProcAddress(s_xinput, "XInputGetKeystroke");
-            s_getStateEx                = (decltype(s_getStateEx))GetProcAddress(s_xinput, "XInputGetStateEx");
-            s_waitForGuideButton        = (decltype(s_waitForGuideButton))GetProcAddress(s_xinput, "XInputWaitForGuideButton");
-            s_cancelGuideButtonWait     = (decltype(s_cancelGuideButtonWait))GetProcAddress(s_xinput, "XInputCancelGuideButtonWait");
-            s_powerOffController        = (decltype(s_powerOffController))GetProcAddress(s_xinput, "XInputPowerOffController");
+
+            // The undocumented functions must be imported through ordinal as they don't have names
+            s_getStateEx                = (decltype(s_getStateEx))GetProcAddress(s_xinput, (const char*)100);
+            s_waitForGuideButton        = (decltype(s_waitForGuideButton))GetProcAddress(s_xinput, (const char*)101);
+            s_cancelGuideButtonWait     = (decltype(s_cancelGuideButtonWait))GetProcAddress(s_xinput, (const char*)102);
+            s_powerOffController        = (decltype(s_powerOffController))GetProcAddress(s_xinput, (const char*)103);
         }
     }
 
