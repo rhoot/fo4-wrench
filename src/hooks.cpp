@@ -17,8 +17,8 @@ static size_t AsmLength (void* addr, size_t minSize)
     // unassigned memory. Specifically, `ud_set_input_buffer` should get a more reasonable
     // second parameter...
     //
-    // Also, this function has the problem where a function can actually be too small, and
-    // it'll just happily keep reading whatever's after it, unless it's an invalid opcode.
+    // Also, ideally this function should also somehow (magically) detect the end of a function
+    // so we don't overwrite whatever is after it for functions smaller than `minSize`.
 
     ud_t ud;
     ud_init(&ud);
@@ -95,6 +95,8 @@ namespace hooks {
 
     DetourBuffer::~DetourBuffer ()
     {
+        // TODO: This should also remove the detour
+
         if (m_buffer) {
             VirtualFree((void*)m_buffer, 0, MEM_RELEASE);
         }
@@ -141,7 +143,7 @@ hooks::DetourBuffer DetourImpl (void* src, void* dst, void** prev)
             continue;
         }
 
-        // TODO: Fix bug where this will fail if the current block is too big
+        // TODO: Fix bug where this may generate a bad jump if the current block is too big
         buffer = (uint8_t*)VirtualAlloc(mbi.BaseAddress, allocSize, MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE);
         if (buffer) {
             break;
