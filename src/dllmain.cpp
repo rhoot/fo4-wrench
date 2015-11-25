@@ -740,7 +740,6 @@ static size_t BuildPath (const wchar_t name[], wchar_t (&path)[N])
 static void InitConfig ()
 {
     Config::Set({"Movies", "Interface/HUDMenu.swf", "ScaleMode"}, "ShowAll");
-    Config::Set({"Movies", "Interface/ScopeMenu.swf", "ScaleMode"}, "ExactFit");
     Config::Set({"Movies", "Interface/FaderMenu.swf", "ScaleMode"}, "ShowAll");
     Config::Set({"Movies", "Interface/ButtonBarMenu.swf", "ScaleMode"}, "ShowAll");
 
