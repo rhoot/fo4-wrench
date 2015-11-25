@@ -218,15 +218,15 @@ static DetourInfo Detour (T* src, T* dst)
 ///
 
 static bool DataCompare (const uint8_t* buffer,
-                         const char*    data,
-                         const char*    sMask)
+                         const uint8_t* data,
+                         const uint8_t* sMask)
 {
     for (; *sMask; ++sMask, ++buffer, ++data) {
         if (*sMask == 'x' && *buffer != *data) {
             return false;
         }
     }
-    return *sMask != 0;
+    return true;
 }
 
 
@@ -235,10 +235,11 @@ static uintptr_t FindPattern (uintptr_t   address,
                               const char* data,
                               const char* sMask)
 {
-    auto length = term - address;
-    for (size_t i = 0; i < length; ++i) {
-        if (DataCompare((const uint8_t*)(address + i), data, sMask)) {
-            return address + i;
+    auto start = (const uint8_t*)address;
+    auto end = (const uint8_t*)term;
+    for (auto ptr = start; ptr < end; ++ptr) {
+        if (DataCompare(ptr, (const uint8_t*)data, (const uint8_t*)sMask)) {
+            return (uintptr_t)ptr;
         }
     }
     return 0;
@@ -432,13 +433,36 @@ namespace Scaleform {
     static void SetupHooks ()
     {
         const auto imageBase = (uintptr_t)GetModuleHandleA(nullptr);
-        const auto rdata = FindSection(".rdata", 6);
+        const auto text = FindSection(".text", 5);
 
-        if (rdata) {
-            // Movie vtable. TODO: Use FindPattern instead of hard-coding the address.
-            const auto vtable = (void**)(imageBase + rdata->VirtualAddress + 0x2DDBB0);
-            VfTable vftable(vtable);
-            vftable.Hook<Movie::SetViewScaleMode>(Movie_SetViewScaleMode_Hook, &s_origSetViewScaleMode);
+        if (text) {
+            const auto textStart = imageBase + text->VirtualAddress;
+            const auto textEnd = textStart + text->SizeOfRawData;
+
+            // Find Scaleform's Movie constructor, and inject our own functions into its vftable.
+            const auto mask = "xxxxxxxxx????xxx????xxxxx?????xxxxxxx";
+            const auto pattern = "\x48\x83\xEC\x20"             // sub   rsp, 20h
+                                 "\x33\xED"                     // xor   ebp, ebp
+                                 "\x48\x8D\x05\x00\x00\x00\x00" // lea   rax, [rip+????]
+                                 "\x4C\x8D\x35\x00\x00\x00\x00" // lea   r14, [rip+????]
+                                 "\x4C\x89\x31"                 // mov   [rcx], r14
+                                 "\xC7\x41\x00\x00\x00\x00\x00" // mov   dword ptr [rcx+8], 1
+                                 "\x48\x89\x69\x18"             // mov   [rcx+18h], rbp
+                                 "\x48\x89\x01";                // mov   [rcx], rax
+            const auto ctor = FindPattern(textStart, textEnd, pattern, mask);
+
+            if (ctor) {
+                auto offset = *(const int32_t*)(ctor + 9);
+                auto rip = ctor + 13;
+                auto vtable = (void**)(rip + offset);
+
+                VfTable vftable(vtable);
+                vftable.Hook<Movie::SetViewScaleMode>(Movie_SetViewScaleMode_Hook, &s_origSetViewScaleMode);
+            } else {
+                ERR("Could not locate the Movie constructor");
+            }
+        } else {
+            ERR("No .text segment?");
         }
     }
 
@@ -647,6 +671,10 @@ namespace Dx {
             ERR("No swap chain");
         }
 
+        // Normally we'd set up scaleform hooks from DllMain but at that point the game code is
+        // still encrypted by the steam DRM, so any attempt at finding patterns will fail.
+        Scaleform::SetupHooks();
+
         return result;
     }
 
@@ -730,7 +758,6 @@ BOOL APIENTRY DllMain (HMODULE hModule,
         case DLL_PROCESS_ATTACH:
             InitLog();
             InitConfig();
-            Scaleform::SetupHooks();
             Dx::SetupHooks();
             break;
 
