@@ -4,9 +4,6 @@
     <ClInclude Include="src/stdafx.h">
       <Filter>src</Filter>
     </ClInclude>
-    <ClInclude Include="src/targetver.h">
-      <Filter>src</Filter>
-    </ClInclude>
     <ClInclude Include="3rdparty\DXSDK\Include\XInput.h">
       <Filter>3rdparty\DXSDK\Include</Filter>
     </ClInclude>

@@ -186,7 +186,6 @@
     <ClInclude Include="3rdparty\udis86\libudis86\udint.h" />
     <ClInclude Include="3rdparty\udis86\udis86.h" />
     <ClInclude Include="src/stdafx.h" />
-    <ClInclude Include="src/targetver.h" />
     <ClInclude Include="src\config.h" />
     <ClInclude Include="src\util.h" />
   </ItemGroup>
