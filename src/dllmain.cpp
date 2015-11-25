@@ -534,22 +534,8 @@ namespace Dx {
             for (auto& mapped : s_mappedData) {
                 if (mapped.buffer == buffer) {
                     const auto floats = (float*)mapped.data.pData;
-                    //LOG("%p, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f",
-                    //    buffer,
-                    //    floats[8],
-                    //    floats[9],
-                    //    floats[10],
-                    //    floats[11],
-                    //    floats[12],
-                    //    floats[13],
-                    //    floats[14],
-                    //    floats[15],
-                    //    floats[16],
-                    //    floats[17],
-                    //    floats[18],
-                    //    floats[19]);
+                    const auto count = int(floats[8] + 0.5f);
 
-                    auto count = int(floats[8] + 0.5f);
                     for (auto i = 0; i < count; ++i) {
                         auto v = floats + 12 + i * 4;
                         v[0] = (v[0] - 0.5f) * s_scale + 0.5f;
@@ -583,7 +569,6 @@ namespace Dx {
                 s_width = Width ? Width : rect.right;
                 s_height = Height ? Height : rect.bottom;
                 s_scale = ((float)s_width / (float)s_height) / (16.f / 9.f);
-                LOG("Width=%u, Height=%u, Scale=%f", s_width, s_height, s_scale);
             } else {
                 ERR("Failed to update aspect ratio");
             }
@@ -605,7 +590,6 @@ namespace Dx {
                                                   D3D_FEATURE_LEVEL*          pFeatureLevel,
                                                   ID3D11DeviceContext**       ppImmediateContext)
     {
-        //Init::Wait();
         auto result = s_createDevice(pAdapter,
                                      DriverType,
                                      Software,
@@ -666,13 +650,8 @@ namespace Dx {
         return result;
     }
 
-    // Init thread
     static void SetupHooks ()
     {
-        static DetourInfo s_detour;
-
-        // We probably maybe shouldn't do this in DllMain, but whatevs... Works on my machine! (?°?°.)?
-
         auto d3d = GetModuleHandleA("d3d11");
         if (!d3d) {
             ERR("No d3d available.");
@@ -685,38 +664,11 @@ namespace Dx {
             return;
         }
 
-        s_detour = Detour(proc, CreateDeviceAndSwapChain_Hook);
+        static auto s_detour = Detour(proc, CreateDeviceAndSwapChain_Hook);
         s_createDevice = (D3D11CreateDeviceAndSwapChain_t*)s_detour.trampoline;
     }
 
 } // namespace Dx
-
-
-///
-// Test
-///
-
-namespace Test {
-
-    static DetourInfo s_testDetour;
-
-    static int Test (int a, int b)
-    {
-        auto prev = (decltype(Test)*)s_testDetour.trampoline;
-        return prev(a, b);
-    }
-
-    static void SetupHooks ()
-    {
-        auto module = GetModuleHandleA(nullptr);
-        auto proc = (decltype(Test)*)GetProcAddress(module, "Test");
-
-        if (proc) {
-            s_testDetour = Detour(proc, Test);
-        }
-    }
-
-} // namespace Test
 
 
 ///

@@ -19,17 +19,16 @@ namespace Log {
 } // namespace Log
 
 
+///
+// Misc
+///
+
 template <class T, size_t N>
 constexpr size_t ArraySize (const T(&)[N])
 {
     return N;
 }
 
-/*
- * Copy string src to buffer dst of size dsize.  At most dsize-1
- * chars will be copied.  Always NUL terminates (unless dsize == 0).
- * Returns strlen(src); if retval >= dsize, truncation occurred.
- */
 inline size_t strlcpy (char* dst, const char* src, size_t dsize)
 {
     auto osrc = src;
