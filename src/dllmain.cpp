@@ -2,65 +2,7 @@
 #include "stdafx.h"
 
 #include "config.h"
-
-///
-// Util
-///
-
-template <class T, size_t N>
-constexpr size_t ArraySize (const T(&)[N]) {
-    return N;
-}
-
-
-///
-// Logging
-///
-
-#define LOG(fmt, ...)   Log::Write(__FUNCTION__, fmt, ##__VA_ARGS__)
-#define ERR(fmt, ...)   Log::Write(__FUNCTION__, "ERR: " fmt, ##__VA_ARGS__)
-
-namespace Log {
-
-    static HANDLE s_handle;
-
-    // Main thread
-    static void Open(const wchar_t filename[]) {
-        s_handle = CreateFileW(filename,
-                               GENERIC_WRITE,
-                               0,
-                               nullptr,
-                               CREATE_ALWAYS,
-                               FILE_ATTRIBUTE_NORMAL,
-                               nullptr);
-    }
-
-    // Main thread
-    static void Close() {
-        if (s_handle)
-            CloseHandle(s_handle);
-    }
-
-    // Random threads
-    void Write(const char func[], const char str[], ...) {
-        if (s_handle) {
-            char fmt[0x100];
-            strcpy_s(fmt, func);
-            strcat_s(fmt, ": ");
-            strcat_s(fmt, str);
-            strcat_s(fmt, "\r\n");
-
-            char buffer[0x100];
-            va_list args;
-            va_start(args, str);
-            auto len = (DWORD)vsprintf_s(buffer, fmt, args);
-            va_end(args);
-
-            WriteFile(s_handle, buffer, len, &len, nullptr);
-        }
-    }
-
-} // namespace Log
+#include "util.h"
 
 
 ///
@@ -70,7 +12,7 @@ namespace Log {
 struct DetourInfo {
     union {
         uint8_t* buffer;
-        void*    trampoline;
+        void* trampoline;
     };
 
     DetourInfo ();
@@ -83,9 +25,8 @@ struct DetourInfo {
     void Reset ();
 };
 
-DetourInfo::DetourInfo()
-    : buffer(nullptr) {
-}
+DetourInfo::DetourInfo ()
+    : buffer(nullptr) {}
 
 DetourInfo::DetourInfo (DetourInfo&& source)
     : buffer(source.buffer) {
@@ -224,7 +165,7 @@ static DetourInfo Detour (T* src, T* dst) {
     //   movabs rax, 0xcccccccccccccccc
     //   xchg   rax, [rsp]
     //   ret
-    uint8_t detour[] = { 0x50, 0x48, 0xb8, 0xcc, 0xcc, 0xcc, 0xcc, 0xcc, 0xcc, 0xcc, 0xcc, 0x48, 0x87, 0x04, 0x24, 0xC3 };
+    uint8_t detour[] = {0x50, 0x48, 0xb8, 0xcc, 0xcc, 0xcc, 0xcc, 0xcc, 0xcc, 0xcc, 0xcc, 0x48, 0x87, 0x04, 0x24, 0xC3};
     const auto length = AsmLength(src, 16);
     if (length < 16) {
         info.Reset();
@@ -259,17 +200,17 @@ static DetourInfo Detour (T* src, T* dst) {
 ///
 
 static bool DataCompare (const uint8_t* buffer,
-                         const char*    data,
-                         const char*    sMask) {
-    for (; *sMask; ++sMask, ++buffer, ++data)
+                         const char* data,
+                         const char* sMask) {
+    for (; *sMask; ++sMask , ++buffer , ++data)
         if (*sMask == 'x' && *buffer != *data)
             return false;
     return *sMask != 0;
 }
 
 
-static uintptr_t FindPattern (uintptr_t   address,
-                              uintptr_t   term,
+static uintptr_t FindPattern (uintptr_t address,
+                              uintptr_t term,
                               const char* data,
                               const char* sMask) {
     auto length = term - address;
@@ -280,24 +221,24 @@ static uintptr_t FindPattern (uintptr_t   address,
 }
 
 static IMAGE_SECTION_HEADER* FindSection (const char* name,
-                                          size_t      length) {
+                                          size_t length) {
     auto imageBase = GetModuleHandleA(nullptr);
 
     auto dosHeader = (const IMAGE_DOS_HEADER*)imageBase;
     assert(dosHeader->e_magic == IMAGE_DOS_SIGNATURE);
-    
+
     auto ntHeaders = (const IMAGE_NT_HEADERS*)((uintptr_t)imageBase + dosHeader->e_lfanew);
     assert(ntHeaders->Signature == IMAGE_NT_SIGNATURE);
 
     auto section = IMAGE_FIRST_SECTION(ntHeaders);
 
-    for (unsigned i = 0; i < ntHeaders->FileHeader.NumberOfSections; ++section, ++i) {
+    for (unsigned i = 0; i < ntHeaders->FileHeader.NumberOfSections; ++section , ++i) {
         auto match = CompareStringA(LOCALE_INVARIANT,
-                                    0,
-                                    name,
-                                    (int)length,
-                                    (const char*)section->Name,
-                                    (int)ArraySize(section->Name));
+                                                    0,
+                                                    name,
+                                                    (int)length,
+                                                    (const char*)section->Name,
+                                                    (int)ArraySize(section->Name));
         if (match == CSTR_EQUAL)
             return section;
     }
@@ -306,7 +247,7 @@ static IMAGE_SECTION_HEADER* FindSection (const char* name,
 }
 
 class VfTable {
-    void ** m_vftable;
+    void** m_vftable;
     std::vector<DetourInfo> m_detours;
 
 public:
@@ -325,13 +266,11 @@ public:
     typename F::Ret Invoke (Args&&... args);
 };
 
-VfTable::VfTable () 
-    : m_vftable(nullptr)
-{ }
+VfTable::VfTable ()
+    : m_vftable(nullptr) { }
 
 VfTable::VfTable (void** vftable)
-    : m_vftable(vftable)
-{ }
+    : m_vftable(vftable) { }
 
 bool VfTable::IsValid () const {
     return m_vftable != nullptr;
@@ -378,10 +317,10 @@ template <size_t I, class F>
 struct Function;
 
 template <size_t I, class R, class... A>
-struct Function<I, R(A...)> {
+struct Function<I, R (A ...)> {
     static const size_t INDEX = I;
     using Ret = R;
-    using Fn = R(A...);
+    using Fn = R (A ...);
 };
 
 
@@ -392,21 +331,21 @@ struct Function<I, R(A...)> {
 namespace Scaleform {
 
     enum class ViewScaleMode : uint32_t {
-        NoScale  = 0,
-        ShowAll  = 1,
+        NoScale = 0,
+        ShowAll = 1,
         ExactFit = 2,
         NoBorder = 3,
-        Count    = 4
+        Count = 4
     };
 
     struct MovieDef {
-        using GetFilename = Function<12, const char*(MovieDef&)>;
+        using GetFilename = Function<12, const char* (MovieDef&)>;
 
         void** vftable;
     };
 
     struct Movie {
-        using SetViewScaleMode = Function<14, void(Movie&, ViewScaleMode)>;
+        using SetViewScaleMode = Function<14, void (Movie&, ViewScaleMode)>;
 
         void** vftable;
         uint8_t padding1[0x40];
@@ -417,12 +356,12 @@ namespace Scaleform {
 
     static Movie::SetViewScaleMode::Fn* s_origSetViewScaleMode;
 
-    static const char* GetMovieFilename(const Movie& movie) {
+    static const char* GetMovieFilename (const Movie& movie) {
         VfTable table(movie.movieDef->vftable);
         return table.Invoke<MovieDef::GetFilename>(*movie.movieDef);
     }
 
-    static void Movie_SetViewScaleMode_Hook (Movie&        movie,
+    static void Movie_SetViewScaleMode_Hook (Movie& movie,
                                              ViewScaleMode mode) {
         static const char* s_names[(size_t)ViewScaleMode::Count] = {
             "NoScale",
@@ -433,7 +372,7 @@ namespace Scaleform {
 
         auto oldModeStr = (size_t)mode < ArraySize(s_names) ? s_names[(size_t)mode] : "Invalid";
         auto filename = GetMovieFilename(movie);
-        auto modeStr = Config::Get({ "Movies", filename, "ScaleMode" });
+        auto modeStr = Config::Get({"Movies", filename, "ScaleMode"});
         auto newMode = mode;
 
         if (modeStr) {
@@ -467,7 +406,7 @@ namespace Scaleform {
             vftable.Hook<Movie::SetViewScaleMode>(Movie_SetViewScaleMode_Hook, &s_origSetViewScaleMode);
         }
     }
-    
+
 } // namespace Scaleform
 
 
@@ -482,9 +421,9 @@ namespace Dx {
         D3D11_MAPPED_SUBRESOURCE data;
     };
 
-    using Map_t = Function<14, HRESULT(ID3D11DeviceContext*, ID3D11Resource*, UINT, D3D11_MAP, UINT, D3D11_MAPPED_SUBRESOURCE*)>;
-    using Unmap_t = Function<15, void(ID3D11DeviceContext*, ID3D11Resource*, UINT)>;
-    using ResizeBuffers_t = Function<13, HRESULT(IDXGISwapChain*, UINT, UINT, UINT, DXGI_FORMAT, UINT)>;
+    using Map_t = Function<14, HRESULT (ID3D11DeviceContext*, ID3D11Resource*, UINT, D3D11_MAP, UINT, D3D11_MAPPED_SUBRESOURCE*)>;
+    using Unmap_t = Function<15, void (ID3D11DeviceContext*, ID3D11Resource*, UINT)>;
+    using ResizeBuffers_t = Function<13, HRESULT (IDXGISwapChain*, UINT, UINT, UINT, DXGI_FORMAT, UINT)>;
     using D3D11CreateDeviceAndSwapChain_t = decltype(D3D11CreateDeviceAndSwapChain);
 
     static D3D11CreateDeviceAndSwapChain_t* s_createDevice;
@@ -501,11 +440,11 @@ namespace Dx {
     // *only* used for testing whether other swap chains are referring to the global one.
     static IDXGISwapChain* s_swapChain;
 
-    static HRESULT DeviceContext_Map_Hook (ID3D11DeviceContext*      context,
-                                           ID3D11Resource*           resource,
-                                           UINT                      subResource,
-                                           D3D11_MAP                 mapType,
-                                           UINT                      mapFlags,
+    static HRESULT DeviceContext_Map_Hook (ID3D11DeviceContext* context,
+                                           ID3D11Resource* resource,
+                                           UINT subResource,
+                                           D3D11_MAP mapType,
+                                           UINT mapFlags,
                                            D3D11_MAPPED_SUBRESOURCE* mappedResource) {
         auto result = s_map(context, resource, subResource, mapType, mapFlags, mappedResource);
 
@@ -519,16 +458,16 @@ namespace Dx {
                 buffer->GetDesc(&desc);
 
                 const auto isBackdropBuffer = desc.ByteWidth == 0x230
-                                           && desc.Usage == D3D11_USAGE_DYNAMIC
-                                           && desc.BindFlags == D3D11_BIND_CONSTANT_BUFFER
-                                           && desc.CPUAccessFlags == D3D11_CPU_ACCESS_WRITE
-                                           && desc.MiscFlags == 0
-                                           && desc.StructureByteStride == 0;
+                    && desc.Usage == D3D11_USAGE_DYNAMIC
+                    && desc.BindFlags == D3D11_BIND_CONSTANT_BUFFER
+                    && desc.CPUAccessFlags == D3D11_CPU_ACCESS_WRITE
+                    && desc.MiscFlags == 0
+                    && desc.StructureByteStride == 0;
 
                 const auto hasData = mappedResource
-                                  && mappedResource->pData
-                                  && mappedResource->RowPitch == 0x230
-                                  && mappedResource->DepthPitch == 0x230;
+                    && mappedResource->pData
+                    && mappedResource->RowPitch == 0x230
+                    && mappedResource->DepthPitch == 0x230;
 
                 if (isBackdropBuffer && hasData) {
                     for (auto& mapped : s_mappedData) {
@@ -549,8 +488,8 @@ namespace Dx {
     }
 
     static void DeviceContext_Unmap_Hook (ID3D11DeviceContext* context,
-                                          ID3D11Resource*      resource,
-                                          UINT                 subResource) {
+                                          ID3D11Resource* resource,
+                                          UINT subResource) {
         ID3D11Buffer* buffer = nullptr;
         resource->QueryInterface(&buffer);
 
@@ -591,11 +530,11 @@ namespace Dx {
     }
 
     static HRESULT SwapChain_ResizeBuffers_Hook (IDXGISwapChain* swapChain,
-                                                 UINT            BufferCount,
-                                                 UINT            Width,
-                                                 UINT            Height,
-                                                 DXGI_FORMAT     NewFormat,
-                                                 UINT            SwapChainFlags) {
+                                                 UINT BufferCount,
+                                                 UINT Width,
+                                                 UINT Height,
+                                                 DXGI_FORMAT NewFormat,
+                                                 UINT SwapChainFlags) {
         auto result = s_resizeBuffers(swapChain, BufferCount, Width, Height, NewFormat, SwapChainFlags);
 
         if (swapChain == s_swapChain && SUCCEEDED(result)) {
@@ -615,18 +554,18 @@ namespace Dx {
         return result;
     }
 
-    static HRESULT CreateDeviceAndSwapChain_Hook (IDXGIAdapter*               pAdapter,
-                                                  D3D_DRIVER_TYPE             DriverType,
-                                                  HMODULE                     Software,
-                                                  UINT                        Flags,
-                                                  const D3D_FEATURE_LEVEL*    pFeatureLevels,
-                                                  UINT                        FeatureLevels,
-                                                  UINT                        SDKVersion,
+    static HRESULT CreateDeviceAndSwapChain_Hook (IDXGIAdapter* pAdapter,
+                                                  D3D_DRIVER_TYPE DriverType,
+                                                  HMODULE Software,
+                                                  UINT Flags,
+                                                  const D3D_FEATURE_LEVEL* pFeatureLevels,
+                                                  UINT FeatureLevels,
+                                                  UINT SDKVersion,
                                                   const DXGI_SWAP_CHAIN_DESC* pSwapChainDesc,
-                                                  IDXGISwapChain**            ppSwapChain,
-                                                  ID3D11Device**              ppDevice,
-                                                  D3D_FEATURE_LEVEL*          pFeatureLevel,
-                                                  ID3D11DeviceContext**       ppImmediateContext) {
+                                                  IDXGISwapChain** ppSwapChain,
+                                                  ID3D11Device** ppDevice,
+                                                  D3D_FEATURE_LEVEL* pFeatureLevel,
+                                                  ID3D11DeviceContext** ppImmediateContext) {
         //Init::Wait();
         auto result = s_createDevice(pAdapter,
                                      DriverType,
@@ -725,10 +664,10 @@ namespace Test {
         auto prev = (decltype(Test)*)s_testDetour.trampoline;
         return prev(a, b);
     }
-    
+
     static void SetupHooks () {
         auto module = GetModuleHandleA(nullptr);
-        auto proc   = (decltype(Test)*)GetProcAddress(module, "Test");
+        auto proc = (decltype(Test)*)GetProcAddress(module, "Test");
 
         if (proc) {
             s_testDetour = Detour(proc, Test);
@@ -756,10 +695,10 @@ static size_t BuildPath (const wchar_t name[], wchar_t (&path)[N]) {
 }
 
 static void InitConfig () {
-    Config::Set({ "Movies", "Interface/HUDMenu.swf",       "ScaleMode" }, "ShowAll");
-    Config::Set({ "Movies", "Interface/ScopeMenu.swf",     "ScaleMode" }, "ExactFit");
-    Config::Set({ "Movies", "Interface/FaderMenu.swf",     "ScaleMode" }, "ShowAll");
-    Config::Set({ "Movies", "Interface/ButtonBarMenu.swf", "ScaleMode" }, "ShowAll");
+    Config::Set({"Movies", "Interface/HUDMenu.swf", "ScaleMode"}, "ShowAll");
+    Config::Set({"Movies", "Interface/ScopeMenu.swf", "ScaleMode"}, "ExactFit");
+    Config::Set({"Movies", "Interface/FaderMenu.swf", "ScaleMode"}, "ShowAll");
+    Config::Set({"Movies", "Interface/ButtonBarMenu.swf", "ScaleMode"}, "ShowAll");
 
     wchar_t path[MAX_PATH];
     auto len = BuildPath(L"Wrench.toml", path);
@@ -768,7 +707,7 @@ static void InitConfig () {
     }
 
     Config::Enumerate([] (auto path, auto count, auto value) {
-        char buffer[0x100] = { 0 };
+        char buffer[0x100] = {0};
 
         for (auto i = 0; i < count; ++i) {
             strcat_s(buffer, path[i]);
@@ -788,10 +727,9 @@ static void InitLog () {
 }
 
 BOOL APIENTRY DllMain (HMODULE hModule,
-                       DWORD   ul_reason_for_call,
-                       LPVOID  lpReserved) {
-    switch (ul_reason_for_call)
-    {
+                       DWORD ul_reason_for_call,
+                       LPVOID lpReserved) {
+    switch (ul_reason_for_call) {
         case DLL_PROCESS_ATTACH:
             InitLog();
             InitConfig();
@@ -810,4 +748,3 @@ BOOL APIENTRY DllMain (HMODULE hModule,
 
     return TRUE;
 }
-
