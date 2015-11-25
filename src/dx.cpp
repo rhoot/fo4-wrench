@@ -13,20 +13,18 @@ namespace dx {
     using ID3D11DeviceContext_Unmap_t = hooks::Function<15, void(ID3D11DeviceContext*, ID3D11Resource*, UINT)>;
     using IDXGISwapChain_ResizeBuffers_t = hooks::Function<13, HRESULT(IDXGISwapChain*, UINT, UINT, UINT, DXGI_FORMAT, UINT)>;
 
+
     ///
     // Data
     ///
 
     static std::vector<Callbacks> s_callbacks;
+    static UnsafePtr<IDXGISwapChain> s_swapChain;
 
     static decltype(D3D11CreateDeviceAndSwapChain) * s_createDevice;
     static ID3D11DeviceContext_Map_t::Fn* s_deviceContextMap;
     static ID3D11DeviceContext_Unmap_t::Fn* s_deviceContextUnmap;
     static IDXGISwapChain_ResizeBuffers_t::Fn* s_swapChainResizeBuffers;
-
-    // WARNING: This pointer must NOT be dereferenced, as we did not take a reference to it. It's
-    // *only* used for testing whether other swap chains are referring to the global one.
-    static IDXGISwapChain* s_swapChain;
 
 
     ///

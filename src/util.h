@@ -20,6 +20,81 @@ namespace logging {
 
 
 ///
+// Unsafe ptr
+///
+
+// Allows for assignment/comparison, but not dereferencing.
+template <class T>
+class UnsafePtr
+{
+    const T* m_ptr;
+
+    public:
+        UnsafePtr ();
+        UnsafePtr (const T* ptr);
+        UnsafePtr (const UnsafePtr& other);
+
+        UnsafePtr& operator= (const T* ptr);
+        UnsafePtr& operator= (const UnsafePtr& other);
+
+        friend bool operator== (const UnsafePtr& a, const T* b);
+        friend bool operator!= (const UnsafePtr& a, const T* b);
+        friend bool operator== (const UnsafePtr& a, const UnsafePtr& b);
+        friend bool operator!= (const UnsafePtr& a, const UnsafePtr& b);
+};
+
+template <class T>
+UnsafePtr<T>::UnsafePtr ()
+    : m_ptr(nullptr) { }
+
+template <class T>
+UnsafePtr<T>::UnsafePtr (const T* ptr)
+    : m_ptr(ptr) { }
+
+template <class T>
+UnsafePtr<T>::UnsafePtr (const UnsafePtr<T>& other)
+    : m_ptr(other.m_ptr) { }
+
+template <class T>
+UnsafePtr<T>& UnsafePtr<T>::operator= (const T* ptr)
+{
+    m_ptr = ptr;
+    return *this;
+}
+
+template <class T>
+UnsafePtr<T>& UnsafePtr<T>::operator= (const UnsafePtr& other)
+{
+    m_ptr = other.m_ptr;
+    return *this;
+}
+
+template <class T>
+bool operator== (const UnsafePtr<T>& a, const T* b)
+{
+    return a.m_ptr == b;
+}
+
+template <class T>
+bool operator!= (const UnsafePtr<T>& a, const T* b)
+{
+    return a.m_ptr != b;
+}
+
+template <class T>
+bool operator== (const UnsafePtr<T>& a, const UnsafePtr<T>& b)
+{
+    return a.m_ptr == b.m_ptr;
+}
+
+template <class T>
+bool operator!= (const UnsafePtr<T>& a, const UnsafePtr<T>& b)
+{
+    return a.m_ptr != b.m_ptr;
+}
+
+
+///
 // Misc
 ///
 
