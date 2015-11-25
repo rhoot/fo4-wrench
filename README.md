@@ -62,8 +62,8 @@ ScaleMode = "ShowAll"
 
 ## Libraries
 
-* [cpptoml](/skystrife/cpptoml)
-* [udis86](/vmt/udis86)
+* [cpptoml](https://github.com/skystrife/cpptoml)
+* [udis86](https://github.com/vmt/udis86)
 
 ## Screenshots
 
