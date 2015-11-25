@@ -37,6 +37,9 @@
     <ClInclude Include="src\config.h">
       <Filter>src</Filter>
     </ClInclude>
+    <ClInclude Include="src\util.h">
+      <Filter>src</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src/dllmain.cpp">
@@ -66,7 +69,12 @@
     <ClCompile Include="3rdparty\udis86\libudis86\itab.c">
       <Filter>3rdparty\udis86\libudis86</Filter>
     </ClCompile>
-    <ClCompile Include="src\config.cpp" />
+    <ClCompile Include="src\config.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\util.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="XInput1_3.def" />

@@ -188,6 +188,7 @@
     <ClInclude Include="src/stdafx.h" />
     <ClInclude Include="src/targetver.h" />
     <ClInclude Include="src\config.h" />
+    <ClInclude Include="src\util.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="3rdparty\udis86\libudis86\decode.c">
@@ -264,6 +265,7 @@
     </ClCompile>
     <ClCompile Include="src/XInput1_3.cpp" />
     <ClCompile Include="src\config.cpp" />
+    <ClCompile Include="src\util.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="XInput1_3.def" />

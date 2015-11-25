@@ -201,6 +201,10 @@ namespace Config {
         return nullptr;
     }
 
+    const char* Get (const std::initializer_list<const char*>& path) {
+        return Get(path.begin(), path.size());
+    }
+
     void Set (const char* const path[], size_t count, const char str[]) {
         char combined[0x100];
         auto pathLen = CombinePath(path, count, combined);
@@ -211,6 +215,10 @@ namespace Config {
         }
     }
 
+    void Set (const std::initializer_list<const char*>& path, const char str[]) {
+        Set(path.begin(), path.size(), str);
+    }
+
     void Enumerate (Enumerate_t enumerator) {
         for (auto& kvp : s_options) {
             const char* path[MAX_SEGMENTS];
@@ -219,5 +227,5 @@ namespace Config {
         }
     }
 
-
 } // namespace Config
+
