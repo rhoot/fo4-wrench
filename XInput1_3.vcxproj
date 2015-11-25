@@ -183,6 +183,7 @@
     <ClInclude Include="3rdparty\udis86\udis86.h" />
     <ClInclude Include="src/stdafx.h" />
     <ClInclude Include="src\config.h" />
+    <ClInclude Include="src\dx.h" />
     <ClInclude Include="src\hooks.h" />
     <ClInclude Include="src\util.h" />
   </ItemGroup>
@@ -261,6 +262,7 @@
     </ClCompile>
     <ClCompile Include="src/XInput1_3.cpp" />
     <ClCompile Include="src\config.cpp" />
+    <ClCompile Include="src\dx.cpp" />
     <ClCompile Include="src\hooks.cpp" />
     <ClCompile Include="src\util.cpp" />
   </ItemGroup>
