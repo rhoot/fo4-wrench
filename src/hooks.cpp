@@ -263,23 +263,22 @@ namespace hooks {
                                                size_t      length)
     {
         auto imageBase = GetModuleHandleA(nullptr);
-
         auto dosHeader = (const IMAGE_DOS_HEADER*)imageBase;
-        assert(dosHeader->e_magic == IMAGE_DOS_SIGNATURE);
+        if (dosHeader->e_magic != IMAGE_DOS_SIGNATURE) {
+            ERR("Invalid DOS magic: %#hx", dosHeader->e_magic);
+            return nullptr;
+        }
 
         auto ntHeaders = (const IMAGE_NT_HEADERS*)((uintptr_t)imageBase + dosHeader->e_lfanew);
-        assert(ntHeaders->Signature == IMAGE_NT_SIGNATURE);
+        if (ntHeaders->Signature != IMAGE_NT_SIGNATURE) {
+            ERR("Invalid PE magic: %#x", ntHeaders->Signature);
+            return nullptr;
+        }
 
         auto section = IMAGE_FIRST_SECTION(ntHeaders);
 
         for (unsigned i = 0; i < ntHeaders->FileHeader.NumberOfSections; ++section, ++i) {
-            auto match = CompareStringA(LOCALE_INVARIANT,
-                                        0,
-                                        name,
-                                        (int)length,
-                                        (const char*)section->Name,
-                                        (int)ArraySize(section->Name));
-            if (match == CSTR_EQUAL) {
+            if (strncmp(name, (const char*)section->Name, ArraySize(section->Name)) == 0) {
                 return section;
             }
         }
