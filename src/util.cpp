@@ -78,7 +78,7 @@ void LogAsm (void* addr, size_t size)
     LOG("%u instructions, %llu bytes", count, ud_insn_off(&ud));
 }
 
-size_t strlcpy(char* dst, const char* src, size_t dsize)
+size_t strlcpy (char* dst, const char* src, size_t dsize)
 {
     auto osrc = src;
     auto nleft = dsize;

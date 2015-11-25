@@ -267,7 +267,7 @@ namespace hooks {
     }
 
     struct _IMAGE_SECTION_HEADER* FindSection (const char* name,
-                                              size_t      length)
+                                               size_t      length)
     {
         auto imageBase = GetModuleHandleA(nullptr);
 

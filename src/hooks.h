@@ -95,4 +95,5 @@ namespace hooks {
 
     uintptr_t FindPattern (uintptr_t address, uintptr_t term, const char* data, const char* sMask);
     struct _IMAGE_SECTION_HEADER* FindSection (const char* name, size_t length);
-}
+
+} // namespace hooks
