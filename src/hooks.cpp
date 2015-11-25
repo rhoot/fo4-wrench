@@ -6,6 +6,7 @@
 
 #include "util.h"
 
+
 ///
 // Local helpers
 ///
@@ -62,15 +63,6 @@ static void* FollowJumps (void* addr)
         const auto rip = (intptr_t)addr + (intptr_t)ud_insn_len(&ud);
         addr = (void*)(rip + param->lval.sdword);
     }
-}
-
-template <class T>
-static T RelativePtr (intptr_t src, intptr_t dst, size_t extra)
-{
-    if (dst < src) {
-        return (T)(0 - (src - dst) - extra);
-    }
-    return (T)(dst - (src + extra));
 }
 
 static bool DataCompare (const uint8_t* buffer,
@@ -180,7 +172,7 @@ hooks::DetourBuffer DetourImpl (void* src, void* dst, void** prev)
     uint8_t farJump[6];
     farJump[0] = 0xff;
     farJump[1] = 0x25;
-    *(int32_t*)(farJump + 2) = RelativePtr<int32_t>((intptr_t)src, (intptr_t)(buffer + length + 16), 6);
+    *(int32_t*)(farJump + 2) = (int32_t)((intptr_t)(buffer + length + 16) - (intptr_t)src - 6);
     *(uintptr_t*)(buffer + length + 16) = (uintptr_t)dst;
 
     // Patch the source
@@ -244,6 +236,7 @@ namespace hooks {
     }
 
 } // namespace hooks
+
 
 ///
 // Functions
