@@ -4,151 +4,8 @@
 #include "stdafx.h"
 
 #include "config.h"
-#include "detours.h"
+#include "hooks.h"
 #include "util.h"
-
-///
-// Hooking
-///
-
-static bool DataCompare (const uint8_t* buffer,
-                         const uint8_t* data,
-                         const uint8_t* sMask)
-{
-    for (; *sMask; ++sMask, ++buffer, ++data) {
-        if (*sMask == 'x' && *buffer != *data) {
-            return false;
-        }
-    }
-    return true;
-}
-
-
-static uintptr_t FindPattern (uintptr_t   address,
-                              uintptr_t   term,
-                              const char* data,
-                              const char* sMask)
-{
-    auto start = (const uint8_t*)address;
-    auto end = (const uint8_t*)term;
-    for (auto ptr = start; ptr < end; ++ptr) {
-        if (DataCompare(ptr, (const uint8_t*)data, (const uint8_t*)sMask)) {
-            return (uintptr_t)ptr;
-        }
-    }
-    return 0;
-}
-
-static IMAGE_SECTION_HEADER* FindSection (const char* name,
-                                          size_t      length)
-{
-    auto imageBase = GetModuleHandleA(nullptr);
-
-    auto dosHeader = (const IMAGE_DOS_HEADER*)imageBase;
-    assert(dosHeader->e_magic == IMAGE_DOS_SIGNATURE);
-
-    auto ntHeaders = (const IMAGE_NT_HEADERS*)((uintptr_t)imageBase + dosHeader->e_lfanew);
-    assert(ntHeaders->Signature == IMAGE_NT_SIGNATURE);
-
-    auto section = IMAGE_FIRST_SECTION(ntHeaders);
-
-    for (unsigned i = 0; i < ntHeaders->FileHeader.NumberOfSections; ++section, ++i) {
-        auto match = CompareStringA(LOCALE_INVARIANT,
-                                    0,
-                                    name,
-                                    (int)length,
-                                    (const char*)section->Name,
-                                    (int)ArraySize(section->Name));
-        if (match == CSTR_EQUAL) {
-            return section;
-        }
-    }
-
-    return nullptr;
-}
-
-class VfTable
-{
-    void** m_vftable;
-    std::vector<DetourInfo> m_detours;
-
-    public:
-        VfTable ();
-        VfTable (void** vftable);
-        bool IsValid () const;
-        VfTable& operator= (void** vftable);
-
-        template <class F>
-        void Detour (typename F::Fn* replacement, typename F::Fn** prev);
-
-        template <class F>
-        void Hook (typename F::Fn* replacement, typename F::Fn** prev);
-
-        template <class F, class... Args>
-        typename F::Ret Invoke (Args&& ... args);
-};
-
-VfTable::VfTable ()
-    : m_vftable(nullptr) { }
-
-VfTable::VfTable (void** vftable)
-    : m_vftable(vftable) { }
-
-bool VfTable::IsValid () const
-{
-    return m_vftable != nullptr;
-}
-
-VfTable& VfTable::operator= (void** vftable)
-{
-    m_vftable = vftable;
-    return *this;
-}
-
-template <class F>
-void VfTable::Detour (typename F::Fn* replacement, typename F::Fn** prev)
-{
-    auto src = (typename F::Fn*)m_vftable[F::INDEX];
-    auto info = ::Detour(src, replacement);
-    _InterlockedExchange64((LONG64*)prev, (LONG64)info.trampoline);
-    m_detours.emplace_back(std::move(info));
-}
-
-template <class F>
-void VfTable::Hook (typename F::Fn* replacement, typename F::Fn** prev)
-{
-    const auto addr = m_vftable + F::INDEX;
-    DWORD prevProtection;
-
-    if (!VirtualProtect(addr, sizeof(*addr), PAGE_READWRITE, &prevProtection)) {
-        LOG("Failed to make %p read/writable (%lu)", addr, GetLastError());
-        return;
-    }
-
-    _InterlockedExchange64((LONG64*)prev, (LONG64)*addr);
-    _InterlockedExchange64((LONG64*)addr, (LONG64)replacement);
-
-    if (!VirtualProtect(addr, sizeof(addr), prevProtection, &prevProtection)) {
-        LOG("Failed to restore protection flags for %p (%lu)", addr, GetLastError());
-    }
-}
-
-template <class F, class... Args>
-typename F::Ret VfTable::Invoke (Args&& ... args)
-{
-    auto fn = (typename F::Fn*)m_vftable[F::INDEX];
-    return fn(std::forward<Args>(args) ...);
-}
-
-template <size_t I, class F>
-struct Function;
-
-template <size_t I, class R, class... A>
-struct Function<I, R(A...)> {
-    static const size_t INDEX = I;
-    using Ret = R;
-    using Fn = R(A...);
-};
 
 
 ///
@@ -166,13 +23,13 @@ namespace scaleform {
     };
 
     struct MovieDef {
-        using GetFilename = Function<12, const char* (MovieDef&)>;
+        using GetFilename = hooks::Function<12, const char* (MovieDef&)>;
 
         void** vftable;
     };
 
     struct Movie {
-        using SetViewScaleMode = Function<14, void (Movie&, ViewScaleMode)>;
+        using SetViewScaleMode = hooks::Function<14, void (Movie&, ViewScaleMode)>;
 
         void** vftable;
         uint8_t padding1[0x40];
@@ -185,7 +42,7 @@ namespace scaleform {
 
     static const char* GetMovieFilename (const Movie& movie)
     {
-        VfTable table(movie.movieDef->vftable);
+        hooks::VfTable table(movie.movieDef->vftable);
         return table.Invoke<MovieDef::GetFilename>(*movie.movieDef);
     }
 
@@ -227,7 +84,7 @@ namespace scaleform {
     static void SetupHooks ()
     {
         const auto imageBase = (uintptr_t)GetModuleHandleA(nullptr);
-        const auto text = FindSection(".text", 5);
+        const auto text = hooks::FindSection(".text", 5);
 
         if (text) {
             const auto textStart = imageBase + text->VirtualAddress;
@@ -243,14 +100,14 @@ namespace scaleform {
                                  "\xC7\x41\x00\x00\x00\x00\x00" // mov   dword ptr [rcx+8], 1
                                  "\x48\x89\x69\x18"             // mov   [rcx+18h], rbp
                                  "\x48\x89\x01";                // mov   [rcx], rax
-            const auto ctor = FindPattern(textStart, textEnd, pattern, mask);
+            const auto ctor = hooks::FindPattern(textStart, textEnd, pattern, mask);
 
             if (ctor) {
                 auto offset = *(const int32_t*)(ctor + 9);
                 auto rip = ctor + 13;
                 auto vtable = (void**)(rip + offset);
 
-                VfTable vftable(vtable);
+                hooks::VfTable vftable(vtable);
                 vftable.Hook<Movie::SetViewScaleMode>(Movie_SetViewScaleMode_Hook, &s_origSetViewScaleMode);
             } else {
                 ERR("Could not locate the Movie constructor");
@@ -274,9 +131,9 @@ namespace dx {
         D3D11_MAPPED_SUBRESOURCE data;
     };
 
-    using Map_t = Function<14, HRESULT(ID3D11DeviceContext*, ID3D11Resource*, UINT, D3D11_MAP, UINT, D3D11_MAPPED_SUBRESOURCE*)>;
-    using Unmap_t = Function<15, void (ID3D11DeviceContext*, ID3D11Resource*, UINT)>;
-    using ResizeBuffers_t = Function<13, HRESULT(IDXGISwapChain*, UINT, UINT, UINT, DXGI_FORMAT, UINT)>;
+    using Map_t = hooks::Function<14, HRESULT(ID3D11DeviceContext*, ID3D11Resource*, UINT, D3D11_MAP, UINT, D3D11_MAPPED_SUBRESOURCE*)>;
+    using Unmap_t = hooks::Function<15, void (ID3D11DeviceContext*, ID3D11Resource*, UINT)>;
+    using ResizeBuffers_t = hooks::Function<13, HRESULT(IDXGISwapChain*, UINT, UINT, UINT, DXGI_FORMAT, UINT)>;
     using D3D11CreateDeviceAndSwapChain_t = decltype(D3D11CreateDeviceAndSwapChain);
 
     static D3D11CreateDeviceAndSwapChain_t* s_createDevice;
@@ -395,18 +252,18 @@ namespace dx {
         return result;
     }
 
-    static HRESULT CreateDeviceAndSwapChain_Hook (IDXGIAdapter*               pAdapter,
-                                                  D3D_DRIVER_TYPE             DriverType,
-                                                  HMODULE                     Software,
-                                                  UINT                        Flags,
-                                                  const D3D_FEATURE_LEVEL*    pFeatureLevels,
-                                                  UINT                        FeatureLevels,
-                                                  UINT                        SDKVersion,
-                                                  const DXGI_SWAP_CHAIN_DESC* pSwapChainDesc,
-                                                  IDXGISwapChain**            ppSwapChain,
-                                                  ID3D11Device**              ppDevice,
-                                                  D3D_FEATURE_LEVEL*          pFeatureLevel,
-                                                  ID3D11DeviceContext**       ppImmediateContext)
+    static HRESULT WINAPI CreateDeviceAndSwapChain_Hook (IDXGIAdapter*               pAdapter,
+                                                         D3D_DRIVER_TYPE             DriverType,
+                                                         HMODULE                     Software,
+                                                         UINT                        Flags,
+                                                         const D3D_FEATURE_LEVEL*    pFeatureLevels,
+                                                         UINT                        FeatureLevels,
+                                                         UINT                        SDKVersion,
+                                                         const DXGI_SWAP_CHAIN_DESC* pSwapChainDesc,
+                                                         IDXGISwapChain**            ppSwapChain,
+                                                         ID3D11Device**              ppDevice,
+                                                         D3D_FEATURE_LEVEL*          pFeatureLevel,
+                                                         ID3D11DeviceContext**       ppImmediateContext)
     {
         auto result = s_createDevice(pAdapter,
                                      DriverType,
@@ -430,8 +287,8 @@ namespace dx {
         // leaving this function. It is *not* safe to use after leaving this function however
         // (the pointed to virtual table has been deallocated), and as such should not be
         // globally accessible.
-        static VfTable s_dcVftable;
-        static VfTable s_scVftable;
+        static hooks::VfTable s_dcVftable;
+        static hooks::VfTable s_scVftable;
 
         s_swapChain = ppSwapChain ? *ppSwapChain : nullptr;
 
@@ -486,8 +343,7 @@ namespace dx {
             return;
         }
 
-        static auto s_detour = Detour(proc, CreateDeviceAndSwapChain_Hook);
-        s_createDevice = (D3D11CreateDeviceAndSwapChain_t*)s_detour.trampoline;
+        static auto s_detour = hooks::Detour(proc, &CreateDeviceAndSwapChain_Hook, &s_createDevice);
     }
 
 } // namespace dx
