@@ -1,6 +1,8 @@
 ﻿#include "stdafx.h"
 #include "config.h"
 
+#include "util.h"
+
 namespace Config {
 
     ///
