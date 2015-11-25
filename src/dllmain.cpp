@@ -325,6 +325,7 @@ static void LogConfig ()
 
 static void InitConfig ()
 {
+    config::Set({"XInput", "Path"}, "%WINDIR%\\system32\\XInput1_3.dll");
     config::Set({"Features", "BackdropFix"}, true);
     config::Set({"Features", "UiScale"}, true);
     config::Set({"Movies", "Interface/HUDMenu.swf", "ScaleMode"}, "ShowAll");

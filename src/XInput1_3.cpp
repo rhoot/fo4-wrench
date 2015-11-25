@@ -68,16 +68,20 @@ extern "C" {
 
         if (configured) {
             wchar_t str[MAX_PATH];
-            MultiByteToWideChar(CP_UTF8,
-                                MB_PRECOMPOSED | MB_ERR_INVALID_CHARS,
-                                configured,
-                                -1,
-                                str,
-                                (int)ArraySize(str));
-            ExpandEnvironmentStringsW(str, path, (DWORD)ArraySize(path));
-        } else {
-            const auto str = L"%WINDIR%\\system32\\XInput1_3.dll";
-            ExpandEnvironmentStringsW(str, path, (DWORD)ArraySize(path));
+            auto written = MultiByteToWideChar(CP_UTF8,
+                                               MB_ERR_INVALID_CHARS,
+                                               configured,
+                                               -1,
+                                               str,
+                                               (int)ArraySize(str));
+
+            if (written) {
+                ExpandEnvironmentStringsW(str, path, (DWORD)ArraySize(path));
+            } else {
+                ERR("Could not load XInput:");
+                ERR("    Path: %s", configured);
+                ERR("    Error: %#x", GetLastError());
+            }
         }
 
         if (*path) {
