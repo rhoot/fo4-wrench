@@ -50,3 +50,55 @@ namespace Log {
     }
 
 } // namespace Log
+
+
+///
+// Misc
+///
+
+void LogAsm (void* addr, size_t size)
+{
+    ud_t ud;
+    ud_init(&ud);
+    ud_set_input_buffer(&ud, (const uint8_t*)addr, size);
+    ud_set_mode(&ud, 64);
+    ud_set_syntax(&ud, UD_SYN_INTEL);
+
+    LOG("Assembly at %p (%zu)", addr, size);
+
+    uint32_t count = 0;
+    while (ud_insn_off(&ud) < size) {
+        if (!ud_disassemble(&ud)) {
+            break;
+        }
+        LOG("    %s", ud_insn_asm(&ud));
+        ++count;
+    }
+
+    LOG("%u instructions, %llu bytes", count, ud_insn_off(&ud));
+}
+
+size_t strlcpy(char* dst, const char* src, size_t dsize)
+{
+    auto osrc = src;
+    auto nleft = dsize;
+
+    /* Copy as many bytes as will fit. */
+    if (nleft != 0) {
+        while (--nleft != 0) {
+            if ((*dst++ = *src++) == '\0') {
+                break;
+            }
+        }
+    }
+
+    /* Not enough room in dst, add NUL and traverse rest of src. */
+    if (nleft == 0) {
+        if (dsize != 0) {
+            *dst = '\0';        /* NUL-terminate dst */
+        }
+        while (*src++) {}
+    }
+
+    return src - osrc - 1; /* count does not include NUL */
+}

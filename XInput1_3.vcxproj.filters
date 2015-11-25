@@ -37,6 +37,9 @@
     <ClInclude Include="src\util.h">
       <Filter>src</Filter>
     </ClInclude>
+    <ClInclude Include="src\detours.h">
+      <Filter>src</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src/dllmain.cpp">
@@ -70,6 +73,9 @@
       <Filter>src</Filter>
     </ClCompile>
     <ClCompile Include="src\util.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\detours.cpp">
       <Filter>src</Filter>
     </ClCompile>
   </ItemGroup>
