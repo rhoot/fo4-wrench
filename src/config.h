@@ -12,4 +12,3 @@ namespace Config {
     void Enumerate (Enumerate_t enumerator);
 
 } // namespace
-

@@ -24,19 +24,20 @@ extern "C" {
     static bool s_loaded;
     static HMODULE s_xinput;
 
-    static decltype(XInputGetState)* s_getState;
-    static decltype(XInputSetState)* s_setState;
-    static decltype(XInputGetCapabilities)* s_getCapabilities;
-    static decltype(XInputEnable)* s_enable;
-    static decltype(XInputGetDSoundAudioDeviceGuids)* s_getDSoundAudioDeviceGuids;
-    static decltype(XInputGetBatteryInformation)* s_getBatteryInformation;
-    static decltype(XInputGetKeystroke)* s_getKeystroke;
-    static decltype(XInputGetStateEx)* s_getStateEx;
-    static decltype(XInputWaitForGuideButton)* s_waitForGuideButton;
-    static decltype(XInputCancelGuideButtonWait)* s_cancelGuideButtonWait;
-    static decltype(XInputPowerOffController)* s_powerOffController;
+    static decltype(XInputGetState) * s_getState;
+    static decltype(XInputSetState) * s_setState;
+    static decltype(XInputGetCapabilities) * s_getCapabilities;
+    static decltype(XInputEnable) * s_enable;
+    static decltype(XInputGetDSoundAudioDeviceGuids) * s_getDSoundAudioDeviceGuids;
+    static decltype(XInputGetBatteryInformation) * s_getBatteryInformation;
+    static decltype(XInputGetKeystroke) * s_getKeystroke;
+    static decltype(XInputGetStateEx) * s_getStateEx;
+    static decltype(XInputWaitForGuideButton) * s_waitForGuideButton;
+    static decltype(XInputCancelGuideButtonWait) * s_cancelGuideButtonWait;
+    static decltype(XInputPowerOffController) * s_powerOffController;
 
-    static void UnloadXInput () {
+    static void UnloadXInput ()
+    {
         s_getState = nullptr;
         s_setState = nullptr;
         s_getCapabilities = nullptr;
@@ -55,7 +56,8 @@ extern "C" {
         }
     }
 
-    static void LoadXInput () {
+    static void LoadXInput ()
+    {
         if (s_loaded) {
             return;
         }
@@ -65,11 +67,11 @@ extern "C" {
 
         if (configured) {
             MultiByteToWideChar(CP_UTF8,
-                                       MB_PRECOMPOSED | MB_ERR_INVALID_CHARS,
-                                       configured,
-                                       -1,
-                                       path,
-                                       MAX_PATH);
+                                MB_PRECOMPOSED | MB_ERR_INVALID_CHARS,
+                                configured,
+                                -1,
+                                path,
+                                MAX_PATH);
         } else {
             const auto str = L"%WINDIR%\\system32\\XInput1_3.dll";
             ExpandEnvironmentStringsW(str, path, MAX_PATH);
@@ -107,35 +109,39 @@ extern "C" {
     // Wrapper
     ///
 
-    DWORD WINAPI XInputGetState (DWORD dwUserIndex,
-                                 XINPUT_STATE* pState) {
+    DWORD WINAPI XInputGetState (DWORD         dwUserIndex,
+                                 XINPUT_STATE* pState)
+    {
         LoadXInput();
 
         return s_getState
-                   ? s_getState(dwUserIndex, pState)
-                   : ERROR_DEVICE_NOT_CONNECTED;
+               ? s_getState(dwUserIndex, pState)
+               : ERROR_DEVICE_NOT_CONNECTED;
     }
 
-    DWORD WINAPI XInputSetState (DWORD dwUserIndex,
-                                 XINPUT_VIBRATION* pVibration) {
+    DWORD WINAPI XInputSetState (DWORD             dwUserIndex,
+                                 XINPUT_VIBRATION* pVibration)
+    {
         LoadXInput();
 
         return s_setState
-                   ? s_setState(dwUserIndex, pVibration)
-                   : ERROR_DEVICE_NOT_CONNECTED;
+               ? s_setState(dwUserIndex, pVibration)
+               : ERROR_DEVICE_NOT_CONNECTED;
     }
 
-    DWORD WINAPI XInputGetCapabilities (DWORD dwUserIndex,
-                                        DWORD dwFlags,
-                                        XINPUT_CAPABILITIES* pCapabilities) {
+    DWORD WINAPI XInputGetCapabilities (DWORD                dwUserIndex,
+                                        DWORD                dwFlags,
+                                        XINPUT_CAPABILITIES* pCapabilities)
+    {
         LoadXInput();
 
         return s_getCapabilities
-                   ? s_getCapabilities(dwUserIndex, dwFlags, pCapabilities)
-                   : ERROR_DEVICE_NOT_CONNECTED;
+               ? s_getCapabilities(dwUserIndex, dwFlags, pCapabilities)
+               : ERROR_DEVICE_NOT_CONNECTED;
     }
 
-    void WINAPI XInputEnable (BOOL enable) {
+    void WINAPI XInputEnable (BOOL enable)
+    {
         LoadXInput();
 
         if (s_enable) {
@@ -145,65 +151,71 @@ extern "C" {
 
     DWORD WINAPI XInputGetDSoundAudioDeviceGuids (DWORD dwUserIndex,
                                                   GUID* pDSoundRenderGuid,
-                                                  GUID* pDSoundCaptureGuid) {
+                                                  GUID* pDSoundCaptureGuid)
+    {
         LoadXInput();
 
         return s_getDSoundAudioDeviceGuids
-                   ? s_getDSoundAudioDeviceGuids(dwUserIndex, pDSoundRenderGuid, pDSoundCaptureGuid)
-                   : ERROR_DEVICE_NOT_CONNECTED;
+               ? s_getDSoundAudioDeviceGuids(dwUserIndex, pDSoundRenderGuid, pDSoundCaptureGuid)
+               : ERROR_DEVICE_NOT_CONNECTED;
     }
 
-    DWORD WINAPI XInputGetBatteryInformation (DWORD dwUserIndex,
-                                              BYTE devType,
-                                              XINPUT_BATTERY_INFORMATION* pBatteryInformation) {
+    DWORD WINAPI XInputGetBatteryInformation (DWORD                       dwUserIndex,
+                                              BYTE                        devType,
+                                              XINPUT_BATTERY_INFORMATION* pBatteryInformation)
+    {
         LoadXInput();
 
         return s_getBatteryInformation
-                   ? s_getBatteryInformation(dwUserIndex, devType, pBatteryInformation)
-                   : ERROR_DEVICE_NOT_CONNECTED;
+               ? s_getBatteryInformation(dwUserIndex, devType, pBatteryInformation)
+               : ERROR_DEVICE_NOT_CONNECTED;
     }
 
-    DWORD WINAPI XInputGetKeystroke (DWORD dwUserIndex,
-                                     DWORD dwReserved,
-                                     PXINPUT_KEYSTROKE pKeystroke) {
+    DWORD WINAPI XInputGetKeystroke (DWORD             dwUserIndex,
+                                     DWORD             dwReserved,
+                                     PXINPUT_KEYSTROKE pKeystroke)
+    {
         LoadXInput();
 
         return s_getKeystroke
-                   ? s_getKeystroke(dwUserIndex, dwReserved, pKeystroke)
-                   : ERROR_DEVICE_NOT_CONNECTED;
+               ? s_getKeystroke(dwUserIndex, dwReserved, pKeystroke)
+               : ERROR_DEVICE_NOT_CONNECTED;
     }
 
-    DWORD WINAPI XInputGetStateEx (DWORD dwUserIndex, XINPUT_STATE* pState) {
+    DWORD WINAPI XInputGetStateEx (DWORD dwUserIndex, XINPUT_STATE* pState)
+    {
         LoadXInput();
 
         return s_getStateEx
-                   ? s_getStateEx(dwUserIndex, pState)
-                   : ERROR_DEVICE_NOT_CONNECTED;
+               ? s_getStateEx(dwUserIndex, pState)
+               : ERROR_DEVICE_NOT_CONNECTED;
     }
 
-    DWORD WINAPI XInputWaitForGuideButton (DWORD dwUserIndex, DWORD dwFlag, LPVOID pVoid) {
+    DWORD WINAPI XInputWaitForGuideButton (DWORD dwUserIndex, DWORD dwFlag, LPVOID pVoid)
+    {
         LoadXInput();
 
         return s_waitForGuideButton
-                   ? s_waitForGuideButton(dwUserIndex, dwFlag, pVoid)
-                   : ERROR_DEVICE_NOT_CONNECTED;
+               ? s_waitForGuideButton(dwUserIndex, dwFlag, pVoid)
+               : ERROR_DEVICE_NOT_CONNECTED;
     }
 
-    DWORD WINAPI XInputCancelGuideButtonWait (DWORD dwUserIndex) {
+    DWORD WINAPI XInputCancelGuideButtonWait (DWORD dwUserIndex)
+    {
         LoadXInput();
 
         return s_cancelGuideButtonWait
-                   ? s_cancelGuideButtonWait(dwUserIndex)
-                   : ERROR_DEVICE_NOT_CONNECTED;
+               ? s_cancelGuideButtonWait(dwUserIndex)
+               : ERROR_DEVICE_NOT_CONNECTED;
     }
 
-    DWORD WINAPI XInputPowerOffController (DWORD dwUserIndex) {
+    DWORD WINAPI XInputPowerOffController (DWORD dwUserIndex)
+    {
         LoadXInput();
 
         return s_powerOffController
-                   ? s_powerOffController(dwUserIndex)
-                   : ERROR_DEVICE_NOT_CONNECTED;
+               ? s_powerOffController(dwUserIndex)
+               : ERROR_DEVICE_NOT_CONNECTED;
     }
 
 } // extern "C"
-

@@ -10,7 +10,8 @@ namespace Log {
     static HANDLE s_handle;
 
     // Main thread
-    void Open (const wchar_t filename[]) {
+    void Open (const wchar_t filename[])
+    {
         s_handle = CreateFileW(filename,
                                GENERIC_WRITE,
                                0,
@@ -21,13 +22,16 @@ namespace Log {
     }
 
     // Main thread
-    void Close () {
-        if (s_handle)
+    void Close ()
+    {
+        if (s_handle) {
             CloseHandle(s_handle);
+        }
     }
 
     // Random threads
-    void Write (const char func[], const char str[], ...) {
+    void Write (const char func[], const char str[], ...)
+    {
         if (s_handle) {
             char fmt[0x100];
             snprintf(fmt, ArraySize(fmt), "%s: %s\r\n", func, str);

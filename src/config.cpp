@@ -17,28 +17,33 @@ namespace Config {
     // Locals
     ///
 
-    static bool IsSafeKeyChar (char ch) {
+    static bool IsSafeKeyChar (char ch)
+    {
         return (ch >= 'A' && ch <= 'Z')
-            || (ch >= 'a' && ch <= 'z')
-            || (ch >= '0' && ch <= '9')
-            || (ch == '_')
-            || (ch == '-');
+               || (ch >= 'a' && ch <= 'z')
+               || (ch >= '0' && ch <= '9')
+               || (ch == '_')
+               || (ch == '-');
     }
 
-    static bool IsSafeKeyString (const char str[]) {
-        if (*str == '\0')
+    static bool IsSafeKeyString (const char str[])
+    {
+        if (*str == '\0') {
             return false;
+        }
 
         for (auto curr = str; *curr; ++curr) {
-            if (!IsSafeKeyChar(*curr))
+            if (!IsSafeKeyChar(*curr)) {
                 return false;
+            }
         }
 
         return true;
     }
 
     template <size_t N>
-    static size_t CombinePath (const char* const path[], size_t count, char (&out)[N]) {
+    static size_t CombinePath (const char* const path[], size_t count, char (&out)[N])
+    {
         auto curr = out;
         auto term = out + N;
 
@@ -54,17 +59,19 @@ namespace Config {
             return 0;
         }
 
-        return (curr - out);
+        return curr - out;
     }
 
     template <size_t N>
-    static size_t ParsePath (const std::string& combined, const char* (&path)[N]) {
+    static size_t ParsePath (const std::string& combined, const char* (&path)[N])
+    {
         auto curr = combined.c_str();
         auto term = curr + combined.length();
 
         for (auto i = 0; i < N; i++) {
-            if (curr >= term)
+            if (curr >= term) {
                 return i;
+            }
 
             path[i] = curr;
             curr += strlen(curr) + 1;
@@ -77,7 +84,8 @@ namespace Config {
     // Parser
     ///
 
-    class Parser {
+    class Parser
+    {
         const char* m_path[MAX_SEGMENTS];
         unsigned m_index = 0;
 
@@ -85,21 +93,23 @@ namespace Config {
         void VisitArray (const T& value);
         void StoreValue (const char value[]);
 
-    public:
-        void visit (const cpptoml::array& value);
-        void visit (const cpptoml::table_array& str);
-        void visit (const cpptoml::table& value);
-        void visit (const cpptoml::value<std::string>& value);
-        void visit (const cpptoml::value<int64_t>& value);
-        void visit (const cpptoml::value<double>& value);
-        void visit (const cpptoml::value<cpptoml::datetime>& value);
-        void visit (const cpptoml::value<bool>& value);
+        public:
+            void visit (const cpptoml::array& value);
+            void visit (const cpptoml::table_array& str);
+            void visit (const cpptoml::table& value);
+            void visit (const cpptoml::value<std::string>& value);
+            void visit (const cpptoml::value<int64_t>& value);
+            void visit (const cpptoml::value<double>& value);
+            void visit (const cpptoml::value<cpptoml::datetime>& value);
+            void visit (const cpptoml::value<bool>& value);
     };
 
     template <class T>
-    void Parser::VisitArray (const T& value) {
-        if (m_index == MAX_SEGMENTS)
+    void Parser::VisitArray (const T& value)
+    {
+        if (m_index == MAX_SEGMENTS) {
             return;
+        }
 
         uint32_t index = 0;
 
@@ -112,24 +122,30 @@ namespace Config {
         }
     }
 
-    void Parser::StoreValue (const char value[]) {
-        if (m_index == MAX_SEGMENTS)
+    void Parser::StoreValue (const char value[])
+    {
+        if (m_index == MAX_SEGMENTS) {
             return;
+        }
 
         Set(m_path, m_index, value);
     }
 
-    void Parser::visit (const cpptoml::array& value) {
+    void Parser::visit (const cpptoml::array& value)
+    {
         VisitArray(value);
     }
 
-    void Parser::visit (const cpptoml::table_array& value) {
+    void Parser::visit (const cpptoml::table_array& value)
+    {
         VisitArray(value);
     }
 
-    void Parser::visit (const cpptoml::table& value) {
-        if (m_index == MAX_SEGMENTS)
+    void Parser::visit (const cpptoml::table& value)
+    {
+        if (m_index == MAX_SEGMENTS) {
             return;
+        }
 
         for (auto& kvp : value) {
             m_path[m_index++] = kvp.first.c_str();
@@ -138,29 +154,34 @@ namespace Config {
         }
     }
 
-    void Parser::visit (const cpptoml::value<std::string>& value) {
+    void Parser::visit (const cpptoml::value<std::string>& value)
+    {
         StoreValue(value.get().c_str());
     }
 
-    void Parser::visit (const cpptoml::value<int64_t>& value) {
+    void Parser::visit (const cpptoml::value<int64_t>& value)
+    {
         char buffer[0x40];
         snprintf(buffer, sizeof(buffer), "%lld", value.get());
         StoreValue(buffer);
     }
 
-    void Parser::visit (const cpptoml::value<double>& value) {
+    void Parser::visit (const cpptoml::value<double>& value)
+    {
         char buffer[0x40];
         snprintf(buffer, sizeof(buffer), "%g", value.get());
         StoreValue(buffer);
     }
 
-    void Parser::visit (const cpptoml::value<cpptoml::datetime>& value) {
+    void Parser::visit (const cpptoml::value<cpptoml::datetime>& value)
+    {
         std::stringstream sstr;
         sstr << value.get();
         StoreValue(sstr.str().c_str());
     }
 
-    void Parser::visit (const cpptoml::value<bool>& value) {
+    void Parser::visit (const cpptoml::value<bool>& value)
+    {
         StoreValue(value.get() ? "true" : "false");
     }
 
@@ -169,13 +190,15 @@ namespace Config {
     // Exports
     ///
 
-    bool Load (const wchar_t filename[]) {
+    bool Load (const wchar_t filename[])
+    {
         try {
             std::ifstream infile;
 
             infile.open(filename);
-            if (!infile.is_open())
+            if (!infile.is_open()) {
                 return false;
+            }
 
             cpptoml::parser tomlParser(infile);
             auto table = tomlParser.parse();
@@ -188,7 +211,8 @@ namespace Config {
         return true;
     }
 
-    const char* Get (const char* const path[], size_t count) {
+    const char* Get (const char* const path[], size_t count)
+    {
         char combined[0x100];
         auto pathLen = CombinePath(path, count, combined);
 
@@ -201,11 +225,13 @@ namespace Config {
         return nullptr;
     }
 
-    const char* Get (const std::initializer_list<const char*>& path) {
+    const char* Get (const std::initializer_list<const char*>& path)
+    {
         return Get(path.begin(), path.size());
     }
 
-    void Set (const char* const path[], size_t count, const char str[]) {
+    void Set (const char* const path[], size_t count, const char str[])
+    {
         char combined[0x100];
         auto pathLen = CombinePath(path, count, combined);
 
@@ -215,11 +241,13 @@ namespace Config {
         }
     }
 
-    void Set (const std::initializer_list<const char*>& path, const char str[]) {
+    void Set (const std::initializer_list<const char*>& path, const char str[])
+    {
         Set(path.begin(), path.size(), str);
     }
 
-    void Enumerate (Enumerate_t enumerator) {
+    void Enumerate (Enumerate_t enumerator)
+    {
         for (auto& kvp : s_options) {
             const char* path[MAX_SEGMENTS];
             auto segments = ParsePath(kvp.first, path);
@@ -228,4 +256,3 @@ namespace Config {
     }
 
 } // namespace Config
-

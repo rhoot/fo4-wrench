@@ -29,28 +29,33 @@ DetourInfo::DetourInfo ()
     : buffer(nullptr) {}
 
 DetourInfo::DetourInfo (DetourInfo&& source)
-    : buffer(source.buffer) {
+    : buffer(source.buffer)
+{
     source.buffer = nullptr;
 }
 
-DetourInfo::~DetourInfo () {
+DetourInfo::~DetourInfo ()
+{
     Reset();
 }
 
-DetourInfo& DetourInfo::operator= (DetourInfo&& source) {
+DetourInfo& DetourInfo::operator= (DetourInfo&& source)
+{
     buffer = source.buffer;
     source.buffer = nullptr;
     return *this;
 }
 
-void DetourInfo::Reset () {
+void DetourInfo::Reset ()
+{
     if (buffer) {
         VirtualFree(buffer, 0, MEM_RELEASE);
         buffer = nullptr;
     }
 }
 
-static void LogAsm (void* addr, size_t size) {
+static void LogAsm (void* addr, size_t size)
+{
     ud_t ud;
     ud_init(&ud);
     ud_set_input_buffer(&ud, (const uint8_t*)addr, size);
@@ -61,8 +66,9 @@ static void LogAsm (void* addr, size_t size) {
 
     uint32_t count = 0;
     while (ud_insn_off(&ud) < size) {
-        if (!ud_disassemble(&ud))
+        if (!ud_disassemble(&ud)) {
             break;
+        }
         LOG("  %s", ud_insn_asm(&ud));
         ++count;
     }
@@ -70,7 +76,8 @@ static void LogAsm (void* addr, size_t size) {
     LOG("%u instructions, %llu bytes", count, ud_insn_off(&ud));
 }
 
-static size_t AsmLength (void* addr, size_t minSize) {
+static size_t AsmLength (void* addr, size_t minSize)
+{
     // TODO: I should probably set this up in a way so that it doesn't potentially dig into
     // unassigned memory. Specifically, `ud_set_input_buffer` should get a more reasonable
     // second parameter...
@@ -85,14 +92,16 @@ static size_t AsmLength (void* addr, size_t minSize) {
     ud_set_syntax(&ud, nullptr);
 
     while (ud_insn_off(&ud) < minSize) {
-        if (!ud_disassemble(&ud))
+        if (!ud_disassemble(&ud)) {
             break;
+        }
     }
 
     return ud_insn_off(&ud);
 }
 
-static void* FollowJumps (void* addr) {
+static void* FollowJumps (void* addr)
+{
     ud_t ud;
     ud_init(&ud);
     ud_set_mode(&ud, 64);
@@ -106,8 +115,9 @@ static void* FollowJumps (void* addr) {
         }
 
         const auto instruction = ud_insn_mnemonic(&ud);
-        if (instruction != UD_Ijmp)
+        if (instruction != UD_Ijmp) {
             return addr;
+        }
 
         const auto param = ud_insn_opr(&ud, 0);
         if (param->type != UD_OP_JIMM) {
@@ -121,14 +131,17 @@ static void* FollowJumps (void* addr) {
 }
 
 template <class T>
-static T RelativePtr (intptr_t src, intptr_t dst, size_t extra) {
-    if (dst < src)
+static T RelativePtr (intptr_t src, intptr_t dst, size_t extra)
+{
+    if (dst < src) {
         return (T)(0 - (src - dst) - extra);
+    }
     return (T)(dst - (src + extra));
 }
 
 template <class T>
-static DetourInfo Detour (T* src, T* dst) {
+static DetourInfo Detour (T* src, T* dst)
+{
     // Based on http://www.unknowncheats.me/forum/c-and-c/134871-64-bit-detour-function.html
 
     static_assert(sizeof(void*) == 8, "x64 only");
@@ -148,17 +161,20 @@ static DetourInfo Detour (T* src, T* dst) {
             break;
         }
 
-        if (mbi.State != MEM_FREE)
+        if (mbi.State != MEM_FREE) {
             continue;
+        }
 
         // TODO: Fix bug where this will fail if the current block is too big
         info.buffer = (uint8_t*)VirtualAlloc(mbi.BaseAddress, allocSize, MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE);
-        if (info.buffer)
+        if (info.buffer) {
             break;
+        }
     }
 
-    if (!info.buffer)
+    if (!info.buffer) {
         return std::move(info);
+    }
 
     // Save the original code, and apply the detour:
     //   push   rax
@@ -200,28 +216,35 @@ static DetourInfo Detour (T* src, T* dst) {
 ///
 
 static bool DataCompare (const uint8_t* buffer,
-                         const char* data,
-                         const char* sMask) {
-    for (; *sMask; ++sMask , ++buffer , ++data)
-        if (*sMask == 'x' && *buffer != *data)
+                         const char*    data,
+                         const char*    sMask)
+{
+    for (; *sMask; ++sMask, ++buffer, ++data) {
+        if (*sMask == 'x' && *buffer != *data) {
             return false;
+        }
+    }
     return *sMask != 0;
 }
 
 
-static uintptr_t FindPattern (uintptr_t address,
-                              uintptr_t term,
+static uintptr_t FindPattern (uintptr_t   address,
+                              uintptr_t   term,
                               const char* data,
-                              const char* sMask) {
+                              const char* sMask)
+{
     auto length = term - address;
-    for (size_t i = 0; i < length; ++i)
-        if (DataCompare((const uint8_t*)(address + i), data, sMask))
+    for (size_t i = 0; i < length; ++i) {
+        if (DataCompare((const uint8_t*)(address + i), data, sMask)) {
             return address + i;
+        }
+    }
     return 0;
 }
 
 static IMAGE_SECTION_HEADER* FindSection (const char* name,
-                                          size_t length) {
+                                          size_t      length)
+{
     auto imageBase = GetModuleHandleA(nullptr);
 
     auto dosHeader = (const IMAGE_DOS_HEADER*)imageBase;
@@ -232,38 +255,40 @@ static IMAGE_SECTION_HEADER* FindSection (const char* name,
 
     auto section = IMAGE_FIRST_SECTION(ntHeaders);
 
-    for (unsigned i = 0; i < ntHeaders->FileHeader.NumberOfSections; ++section , ++i) {
+    for (unsigned i = 0; i < ntHeaders->FileHeader.NumberOfSections; ++section, ++i) {
         auto match = CompareStringA(LOCALE_INVARIANT,
-                                                    0,
-                                                    name,
-                                                    (int)length,
-                                                    (const char*)section->Name,
-                                                    (int)ArraySize(section->Name));
-        if (match == CSTR_EQUAL)
+                                    0,
+                                    name,
+                                    (int)length,
+                                    (const char*)section->Name,
+                                    (int)ArraySize(section->Name));
+        if (match == CSTR_EQUAL) {
             return section;
+        }
     }
 
     return nullptr;
 }
 
-class VfTable {
+class VfTable
+{
     void** m_vftable;
     std::vector<DetourInfo> m_detours;
 
-public:
-    VfTable ();
-    VfTable (void** vftable);
-    bool IsValid () const;
-    VfTable& operator= (void** vftable);
+    public:
+        VfTable ();
+        VfTable (void** vftable);
+        bool IsValid () const;
+        VfTable& operator= (void** vftable);
 
-    template <class F>
-    void Detour (typename F::Fn* replacement, typename F::Fn** prev);
+        template <class F>
+        void Detour (typename F::Fn* replacement, typename F::Fn** prev);
 
-    template <class F>
-    void Hook (typename F::Fn* replacement, typename F::Fn** prev);
+        template <class F>
+        void Hook (typename F::Fn* replacement, typename F::Fn** prev);
 
-    template <class F, class... Args>
-    typename F::Ret Invoke (Args&&... args);
+        template <class F, class... Args>
+        typename F::Ret Invoke (Args&& ... args);
 };
 
 VfTable::VfTable ()
@@ -272,17 +297,20 @@ VfTable::VfTable ()
 VfTable::VfTable (void** vftable)
     : m_vftable(vftable) { }
 
-bool VfTable::IsValid () const {
+bool VfTable::IsValid () const
+{
     return m_vftable != nullptr;
 }
 
-VfTable& VfTable::operator= (void** vftable) {
+VfTable& VfTable::operator= (void** vftable)
+{
     m_vftable = vftable;
     return *this;
 }
 
 template <class F>
-void VfTable::Detour (typename F::Fn* replacement, typename F::Fn** prev) {
+void VfTable::Detour (typename F::Fn* replacement, typename F::Fn** prev)
+{
     auto src = (typename F::Fn*)m_vftable[F::INDEX];
     auto info = ::Detour(src, replacement);
     _InterlockedExchange64((LONG64*)prev, (LONG64)info.trampoline);
@@ -290,7 +318,8 @@ void VfTable::Detour (typename F::Fn* replacement, typename F::Fn** prev) {
 }
 
 template <class F>
-void VfTable::Hook (typename F::Fn* replacement, typename F::Fn** prev) {
+void VfTable::Hook (typename F::Fn* replacement, typename F::Fn** prev)
+{
     const auto addr = m_vftable + F::INDEX;
     DWORD prevProtection;
 
@@ -308,19 +337,20 @@ void VfTable::Hook (typename F::Fn* replacement, typename F::Fn** prev) {
 }
 
 template <class F, class... Args>
-typename F::Ret VfTable::Invoke (Args&&... args) {
+typename F::Ret VfTable::Invoke (Args&& ... args)
+{
     auto fn = (typename F::Fn*)m_vftable[F::INDEX];
-    return fn(std::forward<Args>(args)...);
+    return fn(std::forward<Args>(args) ...);
 }
 
 template <size_t I, class F>
 struct Function;
 
 template <size_t I, class R, class... A>
-struct Function<I, R (A ...)> {
+struct Function<I, R(A...)> {
     static const size_t INDEX = I;
     using Ret = R;
-    using Fn = R (A ...);
+    using Fn = R(A...);
 };
 
 
@@ -356,13 +386,15 @@ namespace Scaleform {
 
     static Movie::SetViewScaleMode::Fn* s_origSetViewScaleMode;
 
-    static const char* GetMovieFilename (const Movie& movie) {
+    static const char* GetMovieFilename (const Movie& movie)
+    {
         VfTable table(movie.movieDef->vftable);
         return table.Invoke<MovieDef::GetFilename>(*movie.movieDef);
     }
 
-    static void Movie_SetViewScaleMode_Hook (Movie& movie,
-                                             ViewScaleMode mode) {
+    static void Movie_SetViewScaleMode_Hook (Movie&        movie,
+                                             ViewScaleMode mode)
+    {
         static const char* s_names[(size_t)ViewScaleMode::Count] = {
             "NoScale",
             "ShowAll",
@@ -395,7 +427,8 @@ namespace Scaleform {
     }
 
     // New thread
-    static void SetupHooks () {
+    static void SetupHooks ()
+    {
         const auto imageBase = (uintptr_t)GetModuleHandleA(nullptr);
         const auto rdata = FindSection(".rdata", 6);
 
@@ -421,9 +454,9 @@ namespace Dx {
         D3D11_MAPPED_SUBRESOURCE data;
     };
 
-    using Map_t = Function<14, HRESULT (ID3D11DeviceContext*, ID3D11Resource*, UINT, D3D11_MAP, UINT, D3D11_MAPPED_SUBRESOURCE*)>;
+    using Map_t = Function<14, HRESULT(ID3D11DeviceContext*, ID3D11Resource*, UINT, D3D11_MAP, UINT, D3D11_MAPPED_SUBRESOURCE*)>;
     using Unmap_t = Function<15, void (ID3D11DeviceContext*, ID3D11Resource*, UINT)>;
-    using ResizeBuffers_t = Function<13, HRESULT (IDXGISwapChain*, UINT, UINT, UINT, DXGI_FORMAT, UINT)>;
+    using ResizeBuffers_t = Function<13, HRESULT(IDXGISwapChain*, UINT, UINT, UINT, DXGI_FORMAT, UINT)>;
     using D3D11CreateDeviceAndSwapChain_t = decltype(D3D11CreateDeviceAndSwapChain);
 
     static D3D11CreateDeviceAndSwapChain_t* s_createDevice;
@@ -440,12 +473,13 @@ namespace Dx {
     // *only* used for testing whether other swap chains are referring to the global one.
     static IDXGISwapChain* s_swapChain;
 
-    static HRESULT DeviceContext_Map_Hook (ID3D11DeviceContext* context,
-                                           ID3D11Resource* resource,
-                                           UINT subResource,
-                                           D3D11_MAP mapType,
-                                           UINT mapFlags,
-                                           D3D11_MAPPED_SUBRESOURCE* mappedResource) {
+    static HRESULT DeviceContext_Map_Hook (ID3D11DeviceContext*      context,
+                                           ID3D11Resource*           resource,
+                                           UINT                      subResource,
+                                           D3D11_MAP                 mapType,
+                                           UINT                      mapFlags,
+                                           D3D11_MAPPED_SUBRESOURCE* mappedResource)
+    {
         auto result = s_map(context, resource, subResource, mapType, mapFlags, mappedResource);
 
         if (SUCCEEDED(result)) {
@@ -458,16 +492,16 @@ namespace Dx {
                 buffer->GetDesc(&desc);
 
                 const auto isBackdropBuffer = desc.ByteWidth == 0x230
-                    && desc.Usage == D3D11_USAGE_DYNAMIC
-                    && desc.BindFlags == D3D11_BIND_CONSTANT_BUFFER
-                    && desc.CPUAccessFlags == D3D11_CPU_ACCESS_WRITE
-                    && desc.MiscFlags == 0
-                    && desc.StructureByteStride == 0;
+                                              && desc.Usage == D3D11_USAGE_DYNAMIC
+                                              && desc.BindFlags == D3D11_BIND_CONSTANT_BUFFER
+                                              && desc.CPUAccessFlags == D3D11_CPU_ACCESS_WRITE
+                                              && desc.MiscFlags == 0
+                                              && desc.StructureByteStride == 0;
 
                 const auto hasData = mappedResource
-                    && mappedResource->pData
-                    && mappedResource->RowPitch == 0x230
-                    && mappedResource->DepthPitch == 0x230;
+                                     && mappedResource->pData
+                                     && mappedResource->RowPitch == 0x230
+                                     && mappedResource->DepthPitch == 0x230;
 
                 if (isBackdropBuffer && hasData) {
                     for (auto& mapped : s_mappedData) {
@@ -488,8 +522,9 @@ namespace Dx {
     }
 
     static void DeviceContext_Unmap_Hook (ID3D11DeviceContext* context,
-                                          ID3D11Resource* resource,
-                                          UINT subResource) {
+                                          ID3D11Resource*      resource,
+                                          UINT                 subResource)
+    {
         ID3D11Buffer* buffer = nullptr;
         resource->QueryInterface(&buffer);
 
@@ -530,11 +565,12 @@ namespace Dx {
     }
 
     static HRESULT SwapChain_ResizeBuffers_Hook (IDXGISwapChain* swapChain,
-                                                 UINT BufferCount,
-                                                 UINT Width,
-                                                 UINT Height,
-                                                 DXGI_FORMAT NewFormat,
-                                                 UINT SwapChainFlags) {
+                                                 UINT            BufferCount,
+                                                 UINT            Width,
+                                                 UINT            Height,
+                                                 DXGI_FORMAT     NewFormat,
+                                                 UINT            SwapChainFlags)
+    {
         auto result = s_resizeBuffers(swapChain, BufferCount, Width, Height, NewFormat, SwapChainFlags);
 
         if (swapChain == s_swapChain && SUCCEEDED(result)) {
@@ -554,18 +590,19 @@ namespace Dx {
         return result;
     }
 
-    static HRESULT CreateDeviceAndSwapChain_Hook (IDXGIAdapter* pAdapter,
-                                                  D3D_DRIVER_TYPE DriverType,
-                                                  HMODULE Software,
-                                                  UINT Flags,
-                                                  const D3D_FEATURE_LEVEL* pFeatureLevels,
-                                                  UINT FeatureLevels,
-                                                  UINT SDKVersion,
+    static HRESULT CreateDeviceAndSwapChain_Hook (IDXGIAdapter*               pAdapter,
+                                                  D3D_DRIVER_TYPE             DriverType,
+                                                  HMODULE                     Software,
+                                                  UINT                        Flags,
+                                                  const D3D_FEATURE_LEVEL*    pFeatureLevels,
+                                                  UINT                        FeatureLevels,
+                                                  UINT                        SDKVersion,
                                                   const DXGI_SWAP_CHAIN_DESC* pSwapChainDesc,
-                                                  IDXGISwapChain** ppSwapChain,
-                                                  ID3D11Device** ppDevice,
-                                                  D3D_FEATURE_LEVEL* pFeatureLevel,
-                                                  ID3D11DeviceContext** ppImmediateContext) {
+                                                  IDXGISwapChain**            ppSwapChain,
+                                                  ID3D11Device**              ppDevice,
+                                                  D3D_FEATURE_LEVEL*          pFeatureLevel,
+                                                  ID3D11DeviceContext**       ppImmediateContext)
+    {
         //Init::Wait();
         auto result = s_createDevice(pAdapter,
                                      DriverType,
@@ -628,7 +665,8 @@ namespace Dx {
     }
 
     // Init thread
-    static void SetupHooks () {
+    static void SetupHooks ()
+    {
         static DetourInfo s_detour;
 
         // We probably maybe shouldn't do this in DllMain, but whatevs... Works on my machine! (?°?°.)?
@@ -660,12 +698,14 @@ namespace Test {
 
     static DetourInfo s_testDetour;
 
-    static int Test (int a, int b) {
+    static int Test (int a, int b)
+    {
         auto prev = (decltype(Test)*)s_testDetour.trampoline;
         return prev(a, b);
     }
 
-    static void SetupHooks () {
+    static void SetupHooks ()
+    {
         auto module = GetModuleHandleA(nullptr);
         auto proc = (decltype(Test)*)GetProcAddress(module, "Test");
 
@@ -682,7 +722,8 @@ namespace Test {
 ///
 
 template <size_t N>
-static size_t BuildPath (const wchar_t name[], wchar_t (&path)[N]) {
+static size_t BuildPath (const wchar_t name[], wchar_t (&path)[N])
+{
     wchar_t* sysPath = nullptr;
 
     if (SUCCEEDED(SHGetKnownFolderPath(FOLDERID_Documents, 0, nullptr, &sysPath))) {
@@ -694,7 +735,8 @@ static size_t BuildPath (const wchar_t name[], wchar_t (&path)[N]) {
     return 0;
 }
 
-static void InitConfig () {
+static void InitConfig ()
+{
     Config::Set({"Movies", "Interface/HUDMenu.swf", "ScaleMode"}, "ShowAll");
     Config::Set({"Movies", "Interface/ScopeMenu.swf", "ScaleMode"}, "ExactFit");
     Config::Set({"Movies", "Interface/FaderMenu.swf", "ScaleMode"}, "ShowAll");
@@ -718,7 +760,8 @@ static void InitConfig () {
     });
 }
 
-static void InitLog () {
+static void InitLog ()
+{
     wchar_t logPath[MAX_PATH];
     auto len = BuildPath(L"Wrench.log", logPath);
     if (len && len < ArraySize(logPath)) {
@@ -727,8 +770,9 @@ static void InitLog () {
 }
 
 BOOL APIENTRY DllMain (HMODULE hModule,
-                       DWORD ul_reason_for_call,
-                       LPVOID lpReserved) {
+                       DWORD   ul_reason_for_call,
+                       LPVOID  lpReserved)
+{
     switch (ul_reason_for_call) {
         case DLL_PROCESS_ATTACH:
             InitLog();
