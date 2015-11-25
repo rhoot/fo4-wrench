@@ -63,7 +63,7 @@ extern "C" {
         }
 
         wchar_t path[MAX_PATH] = {0};
-        const auto configured = Config::Get({"XInput", "Path"});
+        const auto configured = config::Get({"XInput", "Path"});
 
         if (configured) {
             MultiByteToWideChar(CP_UTF8,

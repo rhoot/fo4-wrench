@@ -6,7 +6,7 @@
 
 #include "util.h"
 
-namespace Config {
+namespace config {
 
     ///
     // Statics
@@ -260,4 +260,4 @@ namespace Config {
         }
     }
 
-} // namespace Config
+} // namespace config

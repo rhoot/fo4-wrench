@@ -4,19 +4,19 @@
 #pragma once
 
 ///
-// Log
+// Logging
 ///
 
-#define LOG(fmt, ...)   Log::Write(__FUNCTION__, fmt, ## __VA_ARGS__)
-#define ERR(fmt, ...)   Log::Write(__FUNCTION__, "ERR: " fmt, ## __VA_ARGS__)
+#define LOG(fmt, ...)   logging::Write(__FUNCTION__, fmt, ## __VA_ARGS__)
+#define ERR(fmt, ...)   logging::Write(__FUNCTION__, "ERR: " fmt, ## __VA_ARGS__)
 
-namespace Log {
+namespace logging {
 
     void Open (const wchar_t filename[]);
     void Close ();
     void Write (const char func[], const char str[], ...);
 
-} // namespace Log
+} // namespace log
 
 
 ///

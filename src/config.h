@@ -3,7 +3,7 @@
 
 #pragma once
 
-namespace Config {
+namespace config {
 
     using Enumerate_t = void  (const char* path[], size_t count, const char value[]);
 
@@ -14,4 +14,4 @@ namespace Config {
     void Set (const std::initializer_list<const char*>& path, const char str[]);
     void Enumerate (Enumerate_t enumerator);
 
-} // namespace
+} // namespace config

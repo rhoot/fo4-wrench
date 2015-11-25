@@ -155,7 +155,7 @@ struct Function<I, R(A...)> {
 // Scaleform hooks
 ///
 
-namespace Scaleform {
+namespace scaleform {
 
     enum class ViewScaleMode : uint32_t {
         NoScale = 0,
@@ -201,7 +201,7 @@ namespace Scaleform {
 
         auto oldModeStr = (size_t)mode < ArraySize(s_names) ? s_names[(size_t)mode] : "Invalid";
         auto filename = GetMovieFilename(movie);
-        auto modeStr = Config::Get({"Movies", filename, "ScaleMode"});
+        auto modeStr = config::Get({"Movies", filename, "ScaleMode"});
         auto newMode = mode;
 
         if (modeStr) {
@@ -260,14 +260,14 @@ namespace Scaleform {
         }
     }
 
-} // namespace Scaleform
+} // namespace scaleform
 
 
 ///
 // DX Hooks
 ///
 
-namespace Dx {
+namespace dx {
 
     struct MappedBuffers {
         ID3D11Buffer* buffer;
@@ -467,7 +467,7 @@ namespace Dx {
 
         // Normally we'd set up scaleform hooks from DllMain but at that point the game code is
         // still encrypted by the steam DRM, so any attempt at finding patterns will fail.
-        Scaleform::SetupHooks();
+        scaleform::SetupHooks();
 
         return result;
     }
@@ -490,7 +490,7 @@ namespace Dx {
         s_createDevice = (D3D11CreateDeviceAndSwapChain_t*)s_detour.trampoline;
     }
 
-} // namespace Dx
+} // namespace dx
 
 
 ///
@@ -513,17 +513,17 @@ static size_t BuildPath (const wchar_t name[], wchar_t (&path)[N])
 
 static void InitConfig ()
 {
-    Config::Set({"Movies", "Interface/HUDMenu.swf", "ScaleMode"}, "ShowAll");
-    Config::Set({"Movies", "Interface/FaderMenu.swf", "ScaleMode"}, "ShowAll");
-    Config::Set({"Movies", "Interface/ButtonBarMenu.swf", "ScaleMode"}, "ShowAll");
+    config::Set({"Movies", "Interface/HUDMenu.swf", "ScaleMode"}, "ShowAll");
+    config::Set({"Movies", "Interface/FaderMenu.swf", "ScaleMode"}, "ShowAll");
+    config::Set({"Movies", "Interface/ButtonBarMenu.swf", "ScaleMode"}, "ShowAll");
 
     wchar_t path[MAX_PATH];
     auto len = BuildPath(L"Wrench.toml", path);
     if (len && len < ArraySize(path)) {
-        Config::Load(path);
+        config::Load(path);
     }
 
-    Config::Enumerate([] (auto path, auto count, auto value) {
+    config::Enumerate([] (auto path, auto count, auto value) {
         char buffer[0x100] = {0};
 
         for (auto i = 0; i < count; ++i) {
@@ -540,7 +540,7 @@ static void InitLog ()
     wchar_t logPath[MAX_PATH];
     auto len = BuildPath(L"Wrench.log", logPath);
     if (len && len < ArraySize(logPath)) {
-        Log::Open(logPath);
+        logging::Open(logPath);
     }
 }
 
@@ -552,11 +552,11 @@ BOOL APIENTRY DllMain (HMODULE hModule,
         case DLL_PROCESS_ATTACH:
             InitLog();
             InitConfig();
-            Dx::SetupHooks();
+            dx::SetupHooks();
             break;
 
         case DLL_PROCESS_DETACH:
-            Log::Close();
+            logging::Close();
             break;
 
         case DLL_THREAD_ATTACH:

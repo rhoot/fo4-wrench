@@ -5,10 +5,10 @@
 #include "util.h"
 
 ///
-// Log
+// Logging
 ///
 
-namespace Log {
+namespace logging {
 
     static HANDLE s_handle;
 
@@ -49,7 +49,7 @@ namespace Log {
         }
     }
 
-} // namespace Log
+} // namespace logging
 
 
 ///
