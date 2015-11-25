@@ -12,7 +12,7 @@ namespace config {
     // Statics
     ///
 
-    static std::unordered_map<std::string, std::string> s_options;
+    static std::unordered_map<std::string, std::shared_ptr<cpptoml::base> > s_options;
 
     static const size_t MAX_PATH_LEN = 256;
     static const size_t MAX_SEGMENTS = 16;
@@ -85,6 +85,52 @@ namespace config {
         return N;
     }
 
+    static const cpptoml::base* GetValue (const char* const path[], size_t count)
+    {
+        char combined[0x100];
+        auto pathLen = CombinePath(path, count, combined);
+
+        if (pathLen && pathLen != -1) {
+            std::string key(combined, pathLen);
+            auto result = s_options.find(key);
+            return result != s_options.end() ? result->second.get() : nullptr;
+        }
+
+        return nullptr;
+    }
+
+    static bool IdentifyType (const std::shared_ptr<cpptoml::base>& value, ValueType* type)
+    {
+        if (value->is_value()) {
+            if (value->as<bool>()) {
+                *type = ValueType::Bool;
+                return true;
+            }
+
+            if (value->as<std::string>()) {
+                *type = ValueType::String;
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    static bool GetRawValue (ValueType type, const std::shared_ptr<cpptoml::base>& value, const void** raw)
+    {
+        switch (type) {
+            case ValueType::Bool:
+                *raw = &(value->as<bool>()->get());
+                return true;
+
+            case ValueType::String:
+                *raw = value->as<std::string>()->get().c_str();
+                return true;
+        }
+
+        return false;
+    }
+
     ///
     // Parser
     ///
@@ -96,9 +142,12 @@ namespace config {
 
         template <class T>
         void VisitArray (const T& value);
-        void StoreValue (const char value[]);
+        void StoreValue (std::shared_ptr<cpptoml::base>&& value);
 
         public:
+            Parser ();
+            Parser (const char* const path[], size_t count);
+
             void visit (const cpptoml::array& value);
             void visit (const cpptoml::table_array& str);
             void visit (const cpptoml::table& value);
@@ -108,6 +157,17 @@ namespace config {
             void visit (const cpptoml::value<cpptoml::datetime>& value);
             void visit (const cpptoml::value<bool>& value);
     };
+
+    Parser::Parser ()
+        : m_index(0) { }
+
+    Parser::Parser (const char* const path[], size_t count)
+        : m_index(min(MAX_SEGMENTS, (unsigned)count))
+    {
+        for (size_t i = 0; i < count; ++i) {
+            m_path[i] = path[i];
+        }
+    }
 
     template <class T>
     void Parser::VisitArray (const T& value)
@@ -127,13 +187,19 @@ namespace config {
         }
     }
 
-    void Parser::StoreValue (const char value[])
+    void Parser::StoreValue (std::shared_ptr<cpptoml::base>&& value)
     {
         if (m_index == MAX_SEGMENTS) {
             return;
         }
 
-        Set(m_path, m_index, value);
+        char combined[0x100];
+        auto pathLen = CombinePath(m_path, m_index, combined);
+
+        if (pathLen && pathLen != -1) {
+            std::string key(combined, pathLen);
+            s_options[std::move(key)] = std::move(value);
+        }
     }
 
     void Parser::visit (const cpptoml::array& value)
@@ -161,33 +227,27 @@ namespace config {
 
     void Parser::visit (const cpptoml::value<std::string>& value)
     {
-        StoreValue(value.get().c_str());
+        StoreValue(cpptoml::make_value(value.get()));
     }
 
     void Parser::visit (const cpptoml::value<int64_t>& value)
     {
-        char buffer[0x40];
-        snprintf(buffer, sizeof(buffer), "%lld", value.get());
-        StoreValue(buffer);
+        StoreValue(cpptoml::make_value(value.get()));
     }
 
     void Parser::visit (const cpptoml::value<double>& value)
     {
-        char buffer[0x40];
-        snprintf(buffer, sizeof(buffer), "%g", value.get());
-        StoreValue(buffer);
+        StoreValue(cpptoml::make_value(value.get()));
     }
 
     void Parser::visit (const cpptoml::value<cpptoml::datetime>& value)
     {
-        std::stringstream sstr;
-        sstr << value.get();
-        StoreValue(sstr.str().c_str());
+        StoreValue(cpptoml::make_value(value.get()));
     }
 
     void Parser::visit (const cpptoml::value<bool>& value)
     {
-        StoreValue(value.get() ? "true" : "false");
+        StoreValue(cpptoml::make_value(value.get()));
     }
 
 
@@ -218,16 +278,10 @@ namespace config {
 
     const char* Get (const char* const path[], size_t count)
     {
-        char combined[0x100];
-        auto pathLen = CombinePath(path, count, combined);
-
-        if (pathLen && pathLen != -1) {
-            std::string key(combined, pathLen);
-            auto result = s_options.find(key);
-            return result != s_options.end() ? result->second.c_str() : nullptr;
-        }
-
-        return nullptr;
+        auto value = GetValue(path, count);
+        return (value && value->is_value())
+               ? value->as<std::string>()->get().c_str()
+               : nullptr;
     }
 
     const char* Get (const std::initializer_list<const char*>& path)
@@ -235,15 +289,23 @@ namespace config {
         return Get(path.begin(), path.size());
     }
 
+    bool GetBool (const char* const path[], size_t count)
+    {
+        auto value = GetValue(path, count);
+        return (value && value->is_value())
+               ? value->as<bool>()->get()
+               : false;
+    }
+
+    bool GetBool (const std::initializer_list<const char*>& path)
+    {
+        return GetBool(path.begin(), path.size());
+    }
+
     void Set (const char* const path[], size_t count, const char str[])
     {
-        char combined[0x100];
-        auto pathLen = CombinePath(path, count, combined);
-
-        if (pathLen && pathLen != -1) {
-            std::string key(combined, pathLen);
-            s_options[std::move(key)] = str;
-        }
+        Parser parser(path, count);
+        cpptoml::make_value(str)->accept(parser);
     }
 
     void Set (const std::initializer_list<const char*>& path, const char str[])
@@ -251,12 +313,35 @@ namespace config {
         Set(path.begin(), path.size(), str);
     }
 
-    void Enumerate (Enumerate_t enumerator)
+    void Set (const char* const path[], size_t count, bool value)
+    {
+        Parser parser(path, count);
+        cpptoml::make_value(value)->accept(parser);
+    }
+
+    void Set (const std::initializer_list<const char*>& path, bool value)
+    {
+        Set(path.begin(), path.size(), value);
+    }
+
+    void Enumerate (Enumerator& enumerator)
     {
         for (auto& kvp : s_options) {
             const char* path[MAX_SEGMENTS];
             auto segments = ParsePath(kvp.first, path);
-            enumerator(path, segments, kvp.second.c_str());
+            ValueType type;
+
+            if (IdentifyType(kvp.second, &type)) {
+                switch (type) {
+                    case ValueType::Bool:
+                        enumerator.OnBool(path, segments, kvp.second->as<bool>().get()->get());
+                        break;
+
+                    case ValueType::String:
+                        enumerator.OnString(path, segments, kvp.second->as<std::string>()->get().c_str());
+                        break;
+                }
+            }
         }
     }
 

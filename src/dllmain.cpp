@@ -150,6 +150,10 @@ namespace uiscale {
 
     static void Init ()
     {
+        if (!config::GetBool({"Features", "UiScale"})) {
+            return;
+        }
+
         // We can't apply the hooks until later. At the point this is called, Steam still has the
         // executable encrypted, so we can't scan for instructions.
         dx::Callbacks callbacks;
@@ -258,6 +262,10 @@ namespace backdrop {
 
     static void Init ()
     {
+        if (!config::GetBool({"Features", "BackdropFix"})) {
+            return;
+        }
+
         dx::Callbacks callbacks;
         callbacks.afterResourceMap = OnResourceMap;
         callbacks.beforeResourceUnmap = OnResourceUnmap;
@@ -286,8 +294,39 @@ static size_t BuildPath (const wchar_t name[], wchar_t (&path)[N])
     return 0;
 }
 
+static void LogConfig ()
+{
+    struct ConfigLogger : config::Enumerator {
+        char buffer[0x100];
+
+        const char* CombinePath (const char* const path[], size_t count)
+        {
+            buffer[0] = 0;
+            for (size_t i = 0; i < count; ++i) {
+                strcat_s(buffer, path[i]);
+                strcat_s(buffer, ":");
+            }
+            return buffer;
+        }
+
+        void OnBool (const char* const path[], size_t count, bool value) override
+        {
+            LOG("Config(%s %s)", CombinePath(path, count), value ? "true" : "false");
+        }
+        void OnString (const char* const path[], size_t count, const char str[]) override
+        {
+            LOG("Config(%s `%s')", CombinePath(path, count), str);
+        }
+    };
+
+    ConfigLogger e;
+    config::Enumerate(e);
+}
+
 static void InitConfig ()
 {
+    config::Set({"Features", "BackdropFix"}, true);
+    config::Set({"Features", "UiScale"}, true);
     config::Set({"Movies", "Interface/HUDMenu.swf", "ScaleMode"}, "ShowAll");
     config::Set({"Movies", "Interface/FaderMenu.swf", "ScaleMode"}, "ShowAll");
     config::Set({"Movies", "Interface/ButtonBarMenu.swf", "ScaleMode"}, "ShowAll");
@@ -298,16 +337,7 @@ static void InitConfig ()
         config::Load(path);
     }
 
-    config::Enumerate([] (auto path, auto count, auto value) {
-        char buffer[0x100] = {0};
-
-        for (auto i = 0; i < count; ++i) {
-            strcat_s(buffer, path[i]);
-            strcat_s(buffer, ":");
-        }
-
-        LOG("Config(%s `%s')", buffer, value);
-    });
+    LogConfig();
 }
 
 static void InitLog ()

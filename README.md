@@ -29,12 +29,19 @@ FO4-Wrench is configured through a [TOML](/toml-lang/toml) file named
 folder. If that folder does not exist, either create it or simply launch the
 game as that will create it for you. All configuration options are optional.
 
+* **Features.`feature`**
+  > Boolean enabling or disabling individual mod features.
+
+    * `BackdropFix`: Enables or disables the backdrop aspect ratio fix.
+    * `UiScale`: Enables or disables UI element scaling.
+
 * **XInput.Path**
   > The path to the *real* XInput1_3.dll.
 
 * **Movies.`filename`.ScaleMode**:
   > The scale mode to use for the UI element with the given `filename`. The path
-    should use forward slashes, not backslashes. Possible options are:
+    should use forward slashes, not backslashes. Requires UI element scaling to
+    be enabled. Possible options are:
 
     * `"NoScale"`: No scaling, the UI element's native size will be used.
     * `"ShowAll"`: Resize the UI element to fill the viewport, while maintaining
@@ -52,6 +59,10 @@ game as that will create it for you. All configuration options are optional.
 ```toml
 [XInput]
 Path = '%WINDIR%\system32\XInput1_3.dll'
+
+[Features]
+BackdropFix = true
+UiScale = true
 
 [Movies."Interface/HUDMenu.swf"]
 ScaleMode = "ShowAll"
