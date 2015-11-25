@@ -1,4 +1,7 @@
-﻿#define WIN32_LEAN_AND_MEAN
+﻿// Copyright (c) 2015, Johan Sköld
+// License: https://opensource.org/licenses/ISC
+
+#define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
 
 #include <cstdio>
