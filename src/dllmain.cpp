@@ -198,16 +198,16 @@ namespace backdrop {
                 buffer->GetDesc(&desc);
 
                 const auto isBackdropBuffer = desc.ByteWidth == 0x230
-                    && desc.Usage == D3D11_USAGE_DYNAMIC
-                    && desc.BindFlags == D3D11_BIND_CONSTANT_BUFFER
-                    && desc.CPUAccessFlags == D3D11_CPU_ACCESS_WRITE
-                    && desc.MiscFlags == 0
-                    && desc.StructureByteStride == 0;
+                                              && desc.Usage == D3D11_USAGE_DYNAMIC
+                                              && desc.BindFlags == D3D11_BIND_CONSTANT_BUFFER
+                                              && desc.CPUAccessFlags == D3D11_CPU_ACCESS_WRITE
+                                              && desc.MiscFlags == 0
+                                              && desc.StructureByteStride == 0;
 
                 const auto hasData = mappedResource
-                    && mappedResource->pData
-                    && mappedResource->RowPitch == 0x230
-                    && mappedResource->DepthPitch == 0x230;
+                                     && mappedResource->pData
+                                     && mappedResource->RowPitch == 0x230
+                                     && mappedResource->DepthPitch == 0x230;
 
                 if (isBackdropBuffer && hasData) {
                     s_buffer = buffer;
@@ -244,7 +244,16 @@ namespace backdrop {
 
     static void OnViewportResize (uint32_t width, uint32_t height)
     {
-        s_scale = ((float)width / (float)height) / (16.f / 9.f);
+        const auto aspect = (float)width / (float)height;
+        const auto aspect16x9 = 16.f / 9.f;
+        const auto aspect16x10 = 16.f / 10.f;
+
+        // 16:10 is special handled as it has special shaders
+        s_scale = (aspect > aspect16x10 - 0.0001f && aspect < aspect16x10 + 0.0001f)
+                  ? 1.f
+                  : aspect / aspect16x9;
+
+        LOG("Ratio=%f, applying scale=%f", aspect, s_scale);
     }
 
 
