@@ -119,13 +119,13 @@ namespace uiscale {
             // Find Scaleform's Movie constructor, and inject our own functions into its vftable.
             const auto mask = "xxxxxxxxx????xxx????xxxxx?????xxxxxxx";
             const auto pattern = "\x48\x83\xEC\x20"             // sub   rsp, 20h
-                                 "\x33\xED"    // xor   ebp, ebp
+                                 "\x33\xED"                     // xor   ebp, ebp
                                  "\x48\x8D\x05\x00\x00\x00\x00" // lea   rax, [rip+????]
                                  "\x4C\x8D\x35\x00\x00\x00\x00" // lea   r14, [rip+????]
-                                 "\x4C\x89\x31" // mov   [rcx], r14
+                                 "\x4C\x89\x31"                 // mov   [rcx], r14
                                  "\xC7\x41\x00\x00\x00\x00\x00" // mov   dword ptr [rcx+8], 1
-                                 "\x48\x89\x69\x18" // mov   [rcx+18h], rbp
-                                 "\x48\x89\x01"; // mov   [rcx], rax
+                                 "\x48\x89\x69\x18"             // mov   [rcx+18h], rbp
+                                 "\x48\x89\x01";                // mov   [rcx], rax
             const auto ctor = hooks::FindPattern(textStart, textEnd, pattern, mask);
 
             if (ctor) {
