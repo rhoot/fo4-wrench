@@ -37,10 +37,15 @@ class UnsafePtr
         UnsafePtr& operator= (const T* ptr);
         UnsafePtr& operator= (const UnsafePtr& other);
 
-        friend bool operator== (const UnsafePtr& a, const T* b);
-        friend bool operator!= (const UnsafePtr& a, const T* b);
+        operator bool () const;
+
         friend bool operator== (const UnsafePtr& a, const UnsafePtr& b);
         friend bool operator!= (const UnsafePtr& a, const UnsafePtr& b);
+
+        template <class T, class U>
+        friend bool operator== (const UnsafePtr<T>& a, const U* b);
+        template <class T, class U>
+        friend bool operator!= (const UnsafePtr<T>& a, const U* b);
 };
 
 template <class T>
@@ -70,15 +75,8 @@ UnsafePtr<T>& UnsafePtr<T>::operator= (const UnsafePtr& other)
 }
 
 template <class T>
-bool operator== (const UnsafePtr<T>& a, const T* b)
-{
-    return a.m_ptr == b;
-}
-
-template <class T>
-bool operator!= (const UnsafePtr<T>& a, const T* b)
-{
-    return a.m_ptr != b;
+UnsafePtr<T>::operator bool () const {
+    return m_ptr != nullptr;
 }
 
 template <class T>
@@ -91,6 +89,18 @@ template <class T>
 bool operator!= (const UnsafePtr<T>& a, const UnsafePtr<T>& b)
 {
     return a.m_ptr != b.m_ptr;
+}
+
+template <class T, class U>
+bool operator== (const UnsafePtr<T>& a, const U* b)
+{
+    return a.m_ptr == static_cast<const T*>(b);
+}
+
+template <class T, class U>
+bool operator!= (const UnsafePtr<T>& a, const U* b)
+{
+    return a.m_ptr != static_cast<const T*>(b);
 }
 
 

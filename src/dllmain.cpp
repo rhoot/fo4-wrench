@@ -170,17 +170,12 @@ namespace uiscale {
 
 namespace backdrop {
 
-    struct MappedBuffers {
-        ID3D11Buffer* buffer;
-        D3D11_MAPPED_SUBRESOURCE data;
-    };
-
-
     ///
     // Data
     ///
 
-    static MappedBuffers s_mappedData[8];
+    static UnsafePtr<ID3D11Buffer> s_buffer;
+    static D3D11_MAPPED_SUBRESOURCE s_data;
     static float s_scale = 1.0f;
 
 
@@ -188,65 +183,62 @@ namespace backdrop {
     // Hooks
     ///
 
-    static void OnResourceMap (ID3D11DeviceContext* context, ID3D11Resource* resource, D3D11_MAPPED_SUBRESOURCE* mappedResource)
+    static void OnResourceMap (ID3D11DeviceContext*      context,
+                               ID3D11Resource*           resource,
+                               D3D11_MAPPED_SUBRESOURCE* mappedResource)
     {
-        // TODO: Figure out a better way to identify the backdrop buffer
-        ID3D11Buffer* buffer = nullptr;
-        resource->QueryInterface(&buffer);
+        // TODO: Find where this buffer is created, so I can hook it there.
 
-        if (buffer) {
-            D3D11_BUFFER_DESC desc;
-            buffer->GetDesc(&desc);
+        if (!s_buffer) {
+            ID3D11Buffer* buffer;
+            resource->QueryInterface(&buffer);
 
-            const auto isBackdropBuffer = desc.ByteWidth == 0x230
-                                          && desc.Usage == D3D11_USAGE_DYNAMIC
-                                          && desc.BindFlags == D3D11_BIND_CONSTANT_BUFFER
-                                          && desc.CPUAccessFlags == D3D11_CPU_ACCESS_WRITE
-                                          && desc.MiscFlags == 0
-                                          && desc.StructureByteStride == 0;
+            if (buffer) {
+                D3D11_BUFFER_DESC desc;
+                buffer->GetDesc(&desc);
 
-            const auto hasData = mappedResource
-                                 && mappedResource->pData
-                                 && mappedResource->RowPitch == 0x230
-                                 && mappedResource->DepthPitch == 0x230;
+                const auto isBackdropBuffer = desc.ByteWidth == 0x230
+                    && desc.Usage == D3D11_USAGE_DYNAMIC
+                    && desc.BindFlags == D3D11_BIND_CONSTANT_BUFFER
+                    && desc.CPUAccessFlags == D3D11_CPU_ACCESS_WRITE
+                    && desc.MiscFlags == 0
+                    && desc.StructureByteStride == 0;
 
-            if (isBackdropBuffer && hasData) {
-                for (auto& mapped : s_mappedData) {
-                    if (!mapped.buffer) {
-                        buffer->AddRef();
-                        mapped.buffer = buffer;
-                        mapped.data = *mappedResource;
-                        break;
-                    }
+                const auto hasData = mappedResource
+                    && mappedResource->pData
+                    && mappedResource->RowPitch == 0x230
+                    && mappedResource->DepthPitch == 0x230;
+
+                if (isBackdropBuffer && hasData) {
+                    s_buffer = buffer;
                 }
-            }
 
-            buffer->Release();
+                buffer->Release();
+            }
+        }
+
+        if (s_buffer == resource) {
+            s_data = *mappedResource;
         }
     }
 
     static void OnResourceUnmap (ID3D11DeviceContext* context, ID3D11Resource* resource)
     {
-        ID3D11Buffer* buffer = nullptr;
-        resource->QueryInterface(&buffer);
+        if (s_buffer != resource) {
+            return;
+        }
 
-        if (buffer) {
-            for (auto& mapped : s_mappedData) {
-                if (mapped.buffer == buffer) {
-                    const auto floats = (float*)mapped.data.pData;
-                    const auto count = int(floats[8] + 0.5f);
+        if (s_data.pData) {
+            const auto floats = (float*)s_data.pData;
+            const auto count = int(floats[8] + 0.5f);
 
-                    for (auto i = 0; i < count; ++i) {
-                        auto v = floats + 12 + i * 4;
-                        v[0] = (v[0] - 0.5f) * s_scale + 0.5f;
-                        v[2] = (v[2] - 0.5f) * s_scale + 0.5f;
-                    }
-
-                    mapped.buffer->Release();
-                    mapped.buffer = nullptr;
-                    break;
-                }
+            for (auto i = 0; i < count; ++i) {
+                auto v = floats + 12 + i * 4;
+                v[0] = (v[0] - 0.5f) * s_scale + 0.5f;
+                v[2] = (v[2] - 0.5f) * s_scale + 0.5f;
             }
+
+            s_data.pData = nullptr;
         }
     }
 
