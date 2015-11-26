@@ -3,15 +3,17 @@
 FO4-Wrench is a configurable mod for Fallout 4, containing fixes and behavior
 modifications.
 
-* Adds options for modifying stretching behavior of each individual UI clip.
-  This allows UI modders to create a single version of their mod that will work
-  with all aspect ratios. In addition, it fixes many of the stock UI clips.
+* Adds options for modifying scaling behavior of each individual UI clip.
+  This fixes scaling for most of the default UI elements in non-16:9 aspect
+  ratios, and allows UI modders to create a single version of their mods that
+  will work with all aspect ratios.
 * Fixes the placement and scaling of UI backdrops in non-standard aspect ratios,
   so they no longer appear misplaced.
 
 It is implemented as a wrapper around XInput since the game voluntarily loads
 the XInput dll, and the XInput API is tiny enough that wrapping it is just about
-effortless. Simply drop the dll in the game folder to get started.
+effortless. Simply drop the dll in the game folder to get started. See the
+[configuration section](#configuration) for fine-tuning.
 
 [Screenshots](#screenshots)
 
@@ -29,14 +31,14 @@ FO4-Wrench is configured through a [TOML](/toml-lang/toml) file named
 folder. If that folder does not exist, either create it or simply launch the
 game as that will create it for you. All configuration options are optional.
 
+* **XInput.Path**
+  > The path to the *real* XInput1_3.dll.
+
 * **Features.`feature`**
   > Boolean enabling or disabling individual mod features.
 
     * `BackdropFix`: Enables or disables the backdrop aspect ratio fix.
     * `UiScale`: Enables or disables UI clip scaling.
-
-* **XInput.Path**
-  > The path to the *real* XInput1_3.dll.
 
 * **UiScale.`filename`**:
   > The scale mode to use for the UI clip with the given `filename`. The path
