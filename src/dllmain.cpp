@@ -183,40 +183,21 @@ namespace backdrop {
     // Hooks
     ///
 
+    static void OnVsSetConstantBuffers (ID3D11DeviceContext* context,
+                                        size_t               slotStart,
+                                        size_t               buffersCount,
+                                        ID3D11Buffer* const* buffers)
+    {
+        // The backdrop buffer is the only one that uses constant buffer 2, yay!
+        if (!s_buffer && slotStart == 2 && buffersCount == 1) {
+            s_buffer = buffers[0];
+        }
+    }
+
     static void OnResourceMap (ID3D11DeviceContext*      context,
                                ID3D11Resource*           resource,
                                D3D11_MAPPED_SUBRESOURCE* mappedResource)
     {
-        // TODO: Find where this buffer is created, so I can hook it there.
-
-        if (!s_buffer) {
-            ID3D11Buffer* buffer;
-            resource->QueryInterface(&buffer);
-
-            if (buffer) {
-                D3D11_BUFFER_DESC desc;
-                buffer->GetDesc(&desc);
-
-                const auto isBackdropBuffer = desc.ByteWidth == 0x230
-                                              && desc.Usage == D3D11_USAGE_DYNAMIC
-                                              && desc.BindFlags == D3D11_BIND_CONSTANT_BUFFER
-                                              && desc.CPUAccessFlags == D3D11_CPU_ACCESS_WRITE
-                                              && desc.MiscFlags == 0
-                                              && desc.StructureByteStride == 0;
-
-                const auto hasData = mappedResource
-                                     && mappedResource->pData
-                                     && mappedResource->RowPitch == 0x230
-                                     && mappedResource->DepthPitch == 0x230;
-
-                if (isBackdropBuffer && hasData) {
-                    s_buffer = buffer;
-                }
-
-                buffer->Release();
-            }
-        }
-
         if (s_buffer == resource) {
             s_data = *mappedResource;
         }
@@ -230,14 +211,7 @@ namespace backdrop {
 
         if (s_data.pData) {
             const auto floats = (float*)s_data.pData;
-            const auto count = int(floats[8] + 0.5f);
-
-            for (auto i = 0; i < count; ++i) {
-                auto v = floats + 12 + i * 4;
-                v[0] = (v[0] - 0.5f) * s_scale + 0.5f;
-                v[2] = (v[2] - 0.5f) * s_scale + 0.5f;
-            }
-
+            floats[0] *= s_scale;
             s_data.pData = nullptr;
         }
     }
@@ -271,6 +245,7 @@ namespace backdrop {
         callbacks.afterResourceMap = OnResourceMap;
         callbacks.beforeResourceUnmap = OnResourceUnmap;
         callbacks.afterViewportResize = OnViewportResize;
+        callbacks.afterVsSetConstantBuffers = OnVsSetConstantBuffers;
         dx::Register(callbacks);
     }
 

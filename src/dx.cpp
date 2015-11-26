@@ -9,6 +9,7 @@
 
 namespace dx {
 
+    using ID3D11DeviceContext_VSSetConstantBuffers_t = hooks::Function<7, void(ID3D11DeviceContext*, UINT, UINT, ID3D11Buffer* const*)>;
     using ID3D11DeviceContext_Map_t = hooks::Function<14, HRESULT(ID3D11DeviceContext*, ID3D11Resource*, UINT, D3D11_MAP, UINT, D3D11_MAPPED_SUBRESOURCE*)>;
     using ID3D11DeviceContext_Unmap_t = hooks::Function<15, void(ID3D11DeviceContext*, ID3D11Resource*, UINT)>;
     using IDXGISwapChain_ResizeBuffers_t = hooks::Function<13, HRESULT(IDXGISwapChain*, UINT, UINT, UINT, DXGI_FORMAT, UINT)>;
@@ -22,6 +23,7 @@ namespace dx {
     static UnsafePtr<IDXGISwapChain> s_swapChain;
 
     static decltype(D3D11CreateDeviceAndSwapChain) * s_createDevice;
+    static ID3D11DeviceContext_VSSetConstantBuffers_t::Fn* s_deviceContextVsSetConstantBuffers;
     static ID3D11DeviceContext_Map_t::Fn* s_deviceContextMap;
     static ID3D11DeviceContext_Unmap_t::Fn* s_deviceContextUnmap;
     static IDXGISwapChain_ResizeBuffers_t::Fn* s_swapChainResizeBuffers;
@@ -97,6 +99,20 @@ namespace dx {
         return result;
     }
 
+    static void DeviceContextVsSetConstantBuffers (ID3D11DeviceContext* context,
+                                                   UINT                 slotStart,
+                                                   UINT                 numBuffers,
+                                                   ID3D11Buffer* const* buffers)
+    {
+        s_deviceContextVsSetConstantBuffers(context, slotStart, numBuffers, buffers);
+
+        for (auto& cb : s_callbacks) {
+            if (cb.afterVsSetConstantBuffers) {
+                cb.afterVsSetConstantBuffers(context, slotStart, numBuffers, buffers);
+            }
+        }
+    }
+
     static HRESULT WINAPI CreateDeviceAndSwapChain (IDXGIAdapter*               pAdapter,
                                                     D3D_DRIVER_TYPE             DriverType,
                                                     HMODULE                     Software,
@@ -145,11 +161,13 @@ namespace dx {
         auto hookMap = false;
         auto hookUnmap = false;
         auto hookResize = false;
+        auto hookVsSetBuffers = false;
 
         for (auto& cb : s_callbacks) {
             hookMap = hookMap || cb.afterResourceMap != nullptr;
             hookUnmap = hookUnmap || cb.beforeResourceUnmap != nullptr;
             hookResize = hookResize || cb.afterViewportResize != nullptr;
+            hookVsSetBuffers = hookVsSetBuffers || cb.afterVsSetConstantBuffers != nullptr;
         }
 
         // The `IsValid()` calls below are really lies. The vftables may be freed already. In these
@@ -165,6 +183,10 @@ namespace dx {
 
                 if (hookUnmap) {
                     s_dcVftable.Detour<ID3D11DeviceContext_Unmap_t>(DeviceContextUnmap, &s_deviceContextUnmap);
+                }
+
+                if (hookVsSetBuffers) {
+                    s_dcVftable.Detour<ID3D11DeviceContext_VSSetConstantBuffers_t>(DeviceContextVsSetConstantBuffers, &s_deviceContextVsSetConstantBuffers);
                 }
             }
         } else if (!s_dcVftable.IsValid()) {
