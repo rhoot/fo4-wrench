@@ -92,7 +92,7 @@ namespace uiscale {
         auto modeStr = ViewScaleName(mode);
         auto filename = MovieFilename(movie);
         auto newMode = mode;
-        auto newModeStr = config::Get({"Movies", filename, "ScaleMode"});
+        auto newModeStr = config::Get({"UiScale", filename});
 
         if (newModeStr) {
             newMode = ViewScaleFromName(newModeStr);
@@ -329,9 +329,6 @@ static void InitConfig ()
     config::Set({"XInput", "Path"}, "%WINDIR%\\system32\\XInput1_3.dll");
     config::Set({"Features", "BackdropFix"}, true);
     config::Set({"Features", "UiScale"}, true);
-    config::Set({"Movies", "Interface/HUDMenu.swf", "ScaleMode"}, "ShowAll");
-    config::Set({"Movies", "Interface/FaderMenu.swf", "ScaleMode"}, "ShowAll");
-    config::Set({"Movies", "Interface/ButtonBarMenu.swf", "ScaleMode"}, "ShowAll");
 
     wchar_t path[MAX_PATH];
     auto len = BuildPath(L"Wrench.toml", path);

@@ -38,7 +38,7 @@ game as that will create it for you. All configuration options are optional.
 * **XInput.Path**
   > The path to the *real* XInput1_3.dll.
 
-* **Movies.`filename`.ScaleMode**:
+* **UiScale.`filename`**:
   > The scale mode to use for the UI element with the given `filename`. The path
     should use forward slashes, not backslashes. Requires UI element scaling to
     be enabled. Possible options are:
@@ -56,6 +56,10 @@ game as that will create it for you. All configuration options are optional.
 
 ### Default configuration
 
+Note that these values are used by default even when not specified. You only
+need to specify them to override them. Also note that by default, no UI scale
+mode is actually changed.
+
 ```toml
 [XInput]
 Path = '%WINDIR%\system32\XInput1_3.dll'
@@ -63,12 +67,21 @@ Path = '%WINDIR%\system32\XInput1_3.dll'
 [Features]
 BackdropFix = true
 UiScale = true
+```
 
-[Movies."Interface/HUDMenu.swf"]
-ScaleMode = "ShowAll"
+### Recommended configuration
 
-[Movies."Interface/ButtonBarMenu.swf"]
-ScaleMode = "ShowAll"
+Recommendation for 21:9 resolutions.
+
+```toml
+[UiScale]
+"Interface/ButtonBarMenu.swf" = "ShowAll"
+"Interface/ExamineMenu.swf" = "ShowAll"
+"Interface/FaderMenu.swf" = "ExactFit"
+"Interface/HUDMenu.swf" = "ShowAll"
+"Interface/PromptMenu.swf" = "ShowAll"
+"Interface/Workshop.swf" = "ShowAll"
+"Interface/Workshop_CaravanMenu.swf" = "ShowAll"
 ```
 
 ## Libraries
@@ -82,16 +95,16 @@ ScaleMode = "ShowAll"
 Default main menu in 21:9.
 
 ![](doc/mainmenu-modded.jpg)
-Default main menu in 21:9, with this mod in its default configuration.
+Default main menu in 21:9, with this mod in the recommended configuration.
 
 ![](doc/hud-default.jpg)
 Default HUD in 21:9.
 
 ![](doc/hud-modded.jpg)
-Default HUD in 21:9, with this mod in its default configuration.
+Default HUD in 21:9, with this mod in the recommended configuration.
 
 ![](doc/container-default.jpg)
 Default container UI in 21:9.
 
 ![](doc/container-modded.jpg)
-Default container UI in 21:9, with this mod in its default configuration.
+Default container UI in 21:9, with this mod in the recommended configuration.
