@@ -14,37 +14,13 @@ namespace config {
 
     static std::unordered_map<std::string, std::shared_ptr<cpptoml::base> > s_options;
 
-    static const size_t MAX_PATH_LEN = 256;
-    static const size_t MAX_SEGMENTS = 16;
+    const size_t MAX_PATH_LEN = 256;
+    const size_t MAX_SEGMENTS = 16;
 
 
     ///
     // Locals
     ///
-
-    static bool IsSafeKeyChar (char ch)
-    {
-        return (ch >= 'A' && ch <= 'Z')
-               || (ch >= 'a' && ch <= 'z')
-               || (ch >= '0' && ch <= '9')
-               || (ch == '_')
-               || (ch == '-');
-    }
-
-    static bool IsSafeKeyString (const char str[])
-    {
-        if (*str == '\0') {
-            return false;
-        }
-
-        for (auto curr = str; *curr; ++curr) {
-            if (!IsSafeKeyChar(*curr)) {
-                return false;
-            }
-        }
-
-        return true;
-    }
 
     template <size_t N>
     static size_t CombinePath (const char* const path[], size_t count, char (&out)[N])
@@ -52,12 +28,9 @@ namespace config {
         auto curr = out;
         auto term = out + N;
 
-        for (auto i = 0; i < count; ++i) {
+        for (auto i = 0; i < count && curr < term; ++i) {
             // We want to include the null terminator as segment separators
             curr += strlcpy(curr, path[i], term - curr) + 1;
-            if (curr >= term) {
-                break;
-            }
         }
 
         if (curr >= term) {
@@ -87,7 +60,7 @@ namespace config {
 
     static const cpptoml::base* GetValue (const char* const path[], size_t count)
     {
-        char combined[0x100];
+        char combined[MAX_PATH_LEN];
         auto pathLen = CombinePath(path, count, combined);
 
         if (pathLen && pathLen != -1) {
@@ -193,7 +166,7 @@ namespace config {
             return;
         }
 
-        char combined[0x100];
+        char combined[MAX_PATH_LEN];
         auto pathLen = CombinePath(m_path, m_index, combined);
 
         if (pathLen && pathLen != -1) {
