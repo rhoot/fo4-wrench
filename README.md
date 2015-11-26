@@ -3,9 +3,9 @@
 FO4-Wrench is a configurable mod for Fallout 4, containing fixes and behavior
 modifications.
 
-* Adds options for modifying stretching behavior of each individual UI element.
+* Adds options for modifying stretching behavior of each individual UI clip.
   This allows UI modders to create a single version of their mod that will work
-  with all aspect ratios. In addition, it fixes many of the stock UI elements.
+  with all aspect ratios. In addition, it fixes many of the stock UI clips.
 * Fixes the placement and scaling of UI backdrops in non-standard aspect ratios,
   so they no longer appear misplaced.
 
@@ -33,32 +33,33 @@ game as that will create it for you. All configuration options are optional.
   > Boolean enabling or disabling individual mod features.
 
     * `BackdropFix`: Enables or disables the backdrop aspect ratio fix.
-    * `UiScale`: Enables or disables UI element scaling.
+    * `UiScale`: Enables or disables UI clip scaling.
 
 * **XInput.Path**
   > The path to the *real* XInput1_3.dll.
 
 * **UiScale.`filename`**:
-  > The scale mode to use for the UI element with the given `filename`. The path
-    should use forward slashes, not backslashes. Requires UI element scaling to
+  > The scale mode to use for the UI clip with the given `filename`. The path
+    should use forward slashes, not backslashes. Requires UI clip scaling to
     be enabled. Possible options are:
 
-    * `"NoScale"`: No scaling, the UI element's native size will be used.
-    * `"ShowAll"`: Resize the UI element to fill the viewport, while maintaining
-      the aspect ratio. The viewport is not clipped however, so individual UI
-      elements may still use the full size. The default HUD for example uses the
-      entire viewport area, while the default fader clip does not.
-    * `"ExactFit"`: Resize the UI element, disregarding the aspect ratio. If the
+    * `"NoScale"`: No scaling, the UI clip's native size will be used.
+    * `"ShowAll"`: Resize the UI clip to fill the viewport, while maintaining
+      aspect ratio. No clipping is applied, so UI clips may use the full
+      viewport size.
+    * `"ExactFit"`: Resize the UI clip, disregarding the aspect ratio. If the
       clip's aspect ratio is not the same as that of the viewport, it will be
       stretched to cover the viewport.
-    * `"NoBorder"`: Resize the UI element to fill the viewport, while
-      maintaining the aspect ratio. Contents may be clipped.
+    * `"NoBorder"`: Resize the UI clip to fill the viewport, while
+      maintaining aspect ratio. Contents outside the normal aspect ratio may be
+      clipped.
 
 ### Default configuration
 
-Note that these values are used by default even when not specified. You only
-need to specify them to override them. Also note that by default, no UI scale
-mode is actually changed.
+Note that the below values are used by default even when not specified. You only
+need to specify them to override them. Also note that UI scale modes are
+particularly lacking in this list. They all use the game's default unless
+overridden.
 
 ```toml
 [XInput]
@@ -71,7 +72,8 @@ UiScale = true
 
 ### Recommended configuration
 
-Recommendation for 21:9 resolutions.
+Recommendation for 21:9 resolutions. Some UI mods may require alternative
+settings.
 
 ```toml
 [UiScale]
