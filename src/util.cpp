@@ -17,7 +17,7 @@ namespace logging {
     {
         s_handle = CreateFileW(filename,
                                GENERIC_WRITE,
-                               0,
+                               FILE_SHARE_READ,
                                nullptr,
                                CREATE_ALWAYS,
                                FILE_ATTRIBUTE_NORMAL,
