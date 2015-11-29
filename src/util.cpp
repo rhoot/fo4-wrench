@@ -78,6 +78,17 @@ void LogAsm (void* addr, size_t size)
     LOG("%u instructions, %llu bytes", count, ud_insn_off(&ud));
 }
 
+void LogCallstack (const char func[], size_t count) {
+    void* stack[64];
+    auto max = min(count, ArraySize(stack));
+    auto size = CaptureStackBackTrace(1, (DWORD)max, stack, nullptr);
+
+    logging::Write(func, "Callstack:");
+    for (size_t i = 0; i < size; ++i) {
+        logging::Write(func, "    %#p", stack[i]);
+    }
+}
+
 size_t strlcpy (char* dst, const char* src, size_t dsize)
 {
     auto osrc = src;
