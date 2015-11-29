@@ -176,8 +176,8 @@ inline void float16 (uint16_t* __restrict out, const float in) {
 
     t1 -= 0x1c000;                         // Adjust bias
 
-    t1 = (t3 > 0x38800000) ? 0 : t1;       // Flush-to-zero
-    t1 = (t3 < 0x8e000000) ? 0x7bff : t1;  // Clamp-to-max
+    t1 = (t3 < 0x38800000) ? 0 : t1;       // Flush-to-zero
+    t1 = (t3 > 0x47000000) ? 0x7bff : t1;  // Clamp-to-max
     t1 = (t3 == 0 ? 0 : t1);               // Denormals-as-zero
 
     t1 |= t2;                              // Re-insert sign bit
