@@ -170,12 +170,13 @@ namespace uiscale {
 
 namespace backdrop {
 
+    using BSTriShape_Parse_t = hooks::Function<27, bool(uintptr_t, uintptr_t)>;
+
     ///
     // Data
     ///
 
-    static UnsafePtr<ID3D11Buffer> s_buffer;
-    static D3D11_MAPPED_SUBRESOURCE s_data;
+    static BSTriShape_Parse_t::Fn* s_origTriShapeParse;
     static float s_scale = 1.0f;
 
 
@@ -183,51 +184,81 @@ namespace backdrop {
     // Hooks
     ///
 
-    static void OnVsSetConstantBuffers (ID3D11DeviceContext* context,
-                                        size_t               slotStart,
-                                        size_t               buffersCount,
-                                        ID3D11Buffer* const* buffers)
-    {
-        // The backdrop buffer is the only one that uses constant buffer 2, yay!
-        if (!s_buffer && slotStart == 2 && buffersCount == 1) {
-            s_buffer = buffers[0];
-        }
-    }
-
-    static void OnResourceMap (ID3D11DeviceContext*      context,
-                               ID3D11Resource*           resource,
-                               D3D11_MAPPED_SUBRESOURCE* mappedResource)
-    {
-        if (s_buffer == resource) {
-            s_data = *mappedResource;
-        }
-    }
-
-    static void OnResourceUnmap (ID3D11DeviceContext* context, ID3D11Resource* resource)
-    {
-        if (s_buffer != resource) {
-            return;
-        }
-
-        if (s_data.pData) {
-            const auto floats = (float*)s_data.pData;
-            floats[0] *= s_scale;
-            s_data.pData = nullptr;
-        }
-    }
-
     static void OnViewportResize (uint32_t width, uint32_t height)
     {
         const auto aspect = (float)width / (float)height;
         const auto aspect16x9 = 16.f / 9.f;
-        const auto aspect16x10 = 16.f / 10.f;
-
-        // 16:10 is special handled as it has special shaders
-        s_scale = (aspect > aspect16x10 - 0.0001f && aspect < aspect16x10 + 0.0001f)
-                  ? 1.f
-                  : aspect / aspect16x9;
-
+        s_scale = aspect / aspect16x9;
         LOG("Ratio=%f, applying scale=%f", aspect, s_scale);
+    }
+
+
+    static bool BSTriShapeParse (uintptr_t shape, uintptr_t stream)
+    {
+        auto resource = *(uintptr_t*)(stream + 0x398);
+        auto reader = *(uintptr_t*)(resource + 0x10);
+        auto nameData = *(uintptr_t*)(reader + 0x28);
+        auto nameLen = *(uint32_t*)(nameData + 0x10);
+        auto nameStr = (const char*)(nameData + 0x18);
+        auto result = s_origTriShapeParse(shape, stream);
+
+        if (result && strncmp("Meshes\\Interface\\Objects\\HUDGlassFlat.nif", nameStr, nameLen) == 0) {
+            auto buffers = *(uintptr_t*)(shape + 0x148);
+            auto verts = *(uint32_t*)(shape + 0x164);
+            auto vertexBuffer = *(uintptr_t*)(buffers + 8);
+            auto vertexData = *(uintptr_t*)(vertexBuffer + 8);
+
+            // Sanity check
+            if (verts != 4) {
+                ERR("Could not apply the backdrop fix, wrong amount of mesh vertices");
+            } else {
+                for (auto i = 0; i < 4; ++i) {
+                    auto x = (uint16_t*)(vertexData + i * 20);
+                    float f;
+                    float32(&f, *x);
+                    float16(x, f * s_scale);
+                    LOG("scaled vertex %d from %f to %f", i, f, f * s_scale);
+                }
+            }
+        }
+
+        return result;
+    }
+
+    static void OnDeviceCreate (ID3D11DeviceContext*, ID3D11Device*, IDXGISwapChain*)
+    {
+        auto imageBase = GetModuleHandleA(nullptr);
+        auto segment = hooks::FindSection(".text", 5);
+
+        if (!segment) {
+            ERR("No .text segment found?");
+            return;
+        }
+
+        auto pattern = "\xE8\x00\x00\x00\x00"           // call ????????
+                        "\x48\x8D\x05\x00\x00\x00\x00"   // lea  rax, ????????
+                        "\xC6\x87\x58\x01\x00\x00\x03"   // mov  byte ptr [rdi+158h], 3
+                        "\x48\x89\x07"                   // mov  [rdi], rax
+                        "\x33\xC0"                       // xor  eax, eax
+                        "\x89\x87\x60\x01\x00\x00"       // mov  [rdi+160h], eax
+                        "\x66\x89\x87\x64\x01\x00\x00";  // mov  [rdi+164h], ax
+
+        auto mask = "x????xxx????xxxxxxxxxxxxxxxxxxxxxxxxx";
+
+        auto location = hooks::FindPattern((uintptr_t)imageBase + segment->VirtualAddress,
+                                            (uintptr_t)imageBase + segment->VirtualAddress + segment->SizeOfRawData,
+                                            pattern,
+                                            mask);
+
+        if (!location) {
+            ERR("Unable to find the BSTriShape vftable.");
+            return;
+        }
+
+        auto rip = location + 12;
+        auto rva = *(int32_t*)(location + 8);
+        hooks::VfTable vtable = (void**)(rip + rva);
+        vtable.Hook<BSTriShape_Parse_t>(BSTriShapeParse, &s_origTriShapeParse);
     }
 
 
@@ -241,11 +272,11 @@ namespace backdrop {
             return;
         }
 
+        // Steam still has the .text section encrypted at this point, so we're delay hooking until
+        // we've got a DX device.
         dx::Callbacks callbacks;
-        callbacks.afterResourceMap = OnResourceMap;
-        callbacks.beforeResourceUnmap = OnResourceUnmap;
+        callbacks.afterDeviceCreate = OnDeviceCreate;
         callbacks.afterViewportResize = OnViewportResize;
-        callbacks.afterVsSetConstantBuffers = OnVsSetConstantBuffers;
         dx::Register(callbacks);
     }
 
