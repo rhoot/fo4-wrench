@@ -236,19 +236,19 @@ namespace backdrop {
         }
 
         auto pattern = "\xE8\x00\x00\x00\x00"           // call ????????
-                        "\x48\x8D\x05\x00\x00\x00\x00"   // lea  rax, ????????
-                        "\xC6\x87\x58\x01\x00\x00\x03"   // mov  byte ptr [rdi+158h], 3
-                        "\x48\x89\x07"                   // mov  [rdi], rax
-                        "\x33\xC0"                       // xor  eax, eax
-                        "\x89\x87\x60\x01\x00\x00"       // mov  [rdi+160h], eax
-                        "\x66\x89\x87\x64\x01\x00\x00";  // mov  [rdi+164h], ax
+                       "\x48\x8D\x05\x00\x00\x00\x00"    // lea  rax, ????????
+                       "\xC6\x87\x58\x01\x00\x00\x03"    // mov  byte ptr [rdi+158h], 3
+                       "\x48\x89\x07"                    // mov  [rdi], rax
+                       "\x33\xC0"                        // xor  eax, eax
+                       "\x89\x87\x60\x01\x00\x00"        // mov  [rdi+160h], eax
+                       "\x66\x89\x87\x64\x01\x00\x00";   // mov  [rdi+164h], ax
 
         auto mask = "x????xxx????xxxxxxxxxxxxxxxxxxxxxxxxx";
 
         auto location = hooks::FindPattern((uintptr_t)imageBase + segment->VirtualAddress,
-                                            (uintptr_t)imageBase + segment->VirtualAddress + segment->SizeOfRawData,
-                                            pattern,
-                                            mask);
+                                           (uintptr_t)imageBase + segment->VirtualAddress + segment->SizeOfRawData,
+                                           pattern,
+                                           mask);
 
         if (!location) {
             ERR("Unable to find the BSTriShape vftable.");
