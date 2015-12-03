@@ -65,9 +65,11 @@ create it for you. All configuration options are optional.
 ### Default configuration
 
 Note that the below values are used by default even when not specified. You only
-need to specify them in the config file if you want to override them. Also note
-that UI scale modes are particularly lacking in this list. They all use the
-game's defaults unless specifically overridden.
+need to specify them in the config file if you want to override them.
+
+Please note that the default UiScale settings have only been tested in a 21:9
+aspect ratio. They should still work fine with other aspect ratios, but should
+you encounter issues, please create an issue.
 
 ```toml
 [XInput]
@@ -76,22 +78,14 @@ Path = '%WINDIR%\system32\XInput1_3.dll'
 [Features]
 BackdropFix = true
 UiScale = true
-```
 
-### Recommended configuration
-
-Recommendation for 21:9 resolutions. Some UI mods may require alternative
-settings.
-
-```toml
 [UiScale]
-"Interface/ButtonBarMenu.swf" = "ShowAll"
-"Interface/ExamineMenu.swf" = "ShowAll"
-"Interface/FaderMenu.swf" = "ExactFit"
-"Interface/HUDMenu.swf" = "ShowAll"
-"Interface/PromptMenu.swf" = "ShowAll"
-"Interface/Workshop.swf" = "ShowAll"
-"Interface/Workshop_CaravanMenu.swf" = "ShowAll"
+"Interface/ButtonBarMenu.swf" = "ShowAll"           # Key labels at the bottom of menus
+"Interface/ExamineMenu.swf" = "ShowAll"             # Crafting menu
+"Interface/HUDMenu.swf" = "ShowAll"                 # Regular HUD
+"Interface/PromptMenu.swf" = "ShowAll"              # Confirmation prompt
+"Interface/Workshop.swf" = "ShowAll"                # Workshop menu
+"Interface/Workshop_CaravanMenu.swf" = "ShowAll"    # Sending companions to outposts
 ```
 
 ## Libraries

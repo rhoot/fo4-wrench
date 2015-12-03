@@ -365,6 +365,13 @@ static void InitConfig ()
     config::Set({"Features", "BackdropFix"}, true);
     config::Set({"Features", "UiScale"}, true);
 
+    config::Set({"UiScale", "Interface/ButtonBarMenu.swf"}, "ShowAll");
+    config::Set({"UiScale", "Interface/ExamineMenu.swf"}, "ShowAll");
+    config::Set({"UiScale", "Interface/HUDMenu.swf"}, "ShowAll");
+    config::Set({"UiScale", "Interface/PromptMenu.swf"}, "ShowAll");
+    config::Set({"UiScale", "Interface/Workshop.swf"}, "ShowAll");
+    config::Set({"UiScale", "Interface/Workshop_CaravanMenu.swf"}, "ShowAll");
+
     wchar_t path[MAX_PATH];
     auto len = BuildPath(L"Wrench.toml", path);
     if (len && len < ArraySize(path)) {
