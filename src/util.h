@@ -5,7 +5,12 @@
 
 #include <cstdint>
 
+///
+// Macros
+///
+
 #define REF(...) (void)(__VA_ARGS__)
+
 
 ///
 // Logging
@@ -142,6 +147,8 @@ size_t strlcpy (char* dst, const char* src, size_t dsize);
 
 ///
 //  float16
+//
+//  https://gist.github.com/martinkallman/5049614
 ///
 
 // float32
@@ -171,7 +178,7 @@ inline void float32 (float* __restrict out, const uint16_t in)
 
     t1 |= t2;                               // Re-insert sign bit
 
-    *((uint32_t*)out) = t1;
+    *(uint32_t*)out = t1;
 };
 
 // float16
