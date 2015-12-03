@@ -56,8 +56,9 @@ namespace logging {
 // Scoped timer
 ///
 
-ScopedTimer::ScopedTimer (const char fmt[])
-    : m_fmt(fmt)
+ScopedTimer::ScopedTimer (const char func[], const char fmt[])
+    : m_func(func)
+    , m_fmt(fmt)
 {
     static_assert(sizeof(m_start) == sizeof(LARGE_INTEGER), "invalid cast");
     QueryPerformanceCounter((LARGE_INTEGER*)&m_start);
@@ -69,7 +70,7 @@ ScopedTimer::~ScopedTimer ()
     QueryPerformanceCounter((LARGE_INTEGER*)&end);
     QueryPerformanceFrequency((LARGE_INTEGER*)&freq);
     auto microsec = (end - m_start) / (freq / 1000000);
-    LOG(m_fmt, microsec / 1000, microsec % 1000);
+    logging::Write(m_func, m_fmt, microsec / 1000, microsec % 1000);
 }
 
 ///

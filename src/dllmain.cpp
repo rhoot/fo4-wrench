@@ -391,7 +391,7 @@ BOOL APIENTRY DllMain (HMODULE hModule,
 
     switch (ul_reason_for_call) {
         case DLL_PROCESS_ATTACH: {
-            ScopedTimer timer("Started in %u.%u ms");
+            ScopedTimer timer(__FUNCTION__, "Started in %u.%u ms");
             InitLog();
             InitConfig();
 

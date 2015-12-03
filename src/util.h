@@ -116,10 +116,11 @@ bool operator!= (const UnsafePtr<T>& a, const U* b)
 class ScopedTimer
 {
     uint64_t m_start;
+    const char* m_func;
     const char* m_fmt;
 
     public:
-        ScopedTimer (const char fmt[]);
+        ScopedTimer (const char func[], const char fmt[]);
         ~ScopedTimer ();
 };
 
