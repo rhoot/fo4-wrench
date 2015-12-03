@@ -19,7 +19,12 @@ namespace dx {
     // Data
     ///
 
-    static std::vector<Callbacks> s_callbacks;
+    static std::vector<OnDeviceCreate_t*> s_afterDeviceCreate;
+    static std::vector<OnResourceMap_t*> s_afterResourceMap;
+    static std::vector<OnResourceUnmap_t*> s_beforeResourceUnmap;
+    static std::vector<OnViewportResize_t*> s_afterViewportResize;
+    static std::vector<OnVsSetConstantBuffers_t*> s_afterVsSetConstantBuffers;
+
     static UnsafePtr<IDXGISwapChain> s_swapChain;
 
     static decltype(D3D11CreateDeviceAndSwapChain) * s_createDevice;
@@ -43,10 +48,8 @@ namespace dx {
         auto result = s_deviceContextMap(context, resource, subResource, mapType, mapFlags, mappedResource);
 
         if (SUCCEEDED(result)) {
-            for (auto& cb : s_callbacks) {
-                if (cb.afterResourceMap) {
-                    cb.afterResourceMap(context, resource, mappedResource);
-                }
+            for (auto cb : s_afterResourceMap) {
+                cb(context, resource, mappedResource);
             }
         }
 
@@ -57,10 +60,8 @@ namespace dx {
                                     ID3D11Resource*      resource,
                                     UINT                 subResource)
     {
-        for (auto& cb : s_callbacks) {
-            if (cb.beforeResourceUnmap) {
-                cb.beforeResourceUnmap(context, resource);
-            }
+        for (auto cb : s_beforeResourceUnmap) {
+            cb(context, resource);
         }
 
         return s_deviceContextUnmap(context, resource, subResource);
@@ -75,7 +76,7 @@ namespace dx {
     {
         auto result = s_swapChainResizeBuffers(swapChain, BufferCount, Width, Height, NewFormat, SwapChainFlags);
 
-        if (SUCCEEDED(result)) {
+        if (SUCCEEDED(result) && s_swapChain == swapChain) {
             if (!Width || !Height) {
                 DXGI_SWAP_CHAIN_DESC desc;
 
@@ -88,10 +89,8 @@ namespace dx {
             }
 
             if (Width && Height) {
-                for (auto& cb : s_callbacks) {
-                    if (cb.afterViewportResize) {
-                        cb.afterViewportResize(Width, Height);
-                    }
+                for (auto cb : s_afterViewportResize) {
+                    cb(Width, Height);
                 }
             }
         }
@@ -106,10 +105,8 @@ namespace dx {
     {
         s_deviceContextVsSetConstantBuffers(context, slotStart, numBuffers, buffers);
 
-        for (auto& cb : s_callbacks) {
-            if (cb.afterVsSetConstantBuffers) {
-                cb.afterVsSetConstantBuffers(context, slotStart, numBuffers, buffers);
-            }
+        for (auto cb : s_afterVsSetConstantBuffers) {
+            cb(context, slotStart, numBuffers, buffers);
         }
     }
 
@@ -159,19 +156,6 @@ namespace dx {
 
         s_swapChain = swapChain;
 
-        // Determine what detours we need to apply.
-        auto hookMap = false;
-        auto hookUnmap = false;
-        auto hookResize = false;
-        auto hookVsSetBuffers = false;
-
-        for (auto& cb : s_callbacks) {
-            hookMap = hookMap || cb.afterResourceMap != nullptr;
-            hookUnmap = hookUnmap || cb.beforeResourceUnmap != nullptr;
-            hookResize = hookResize || cb.afterViewportResize != nullptr;
-            hookVsSetBuffers = hookVsSetBuffers || cb.afterVsSetConstantBuffers != nullptr;
-        }
-
         // The `IsValid()` calls below are really lies. The vftables may be freed already. In these
         // cases, we really only using them to determine whether we've already detoured the
         // functions or not. We still should not make any calls using the tables!
@@ -179,15 +163,15 @@ namespace dx {
             if (!s_dcVftable.IsValid()) {
                 s_dcVftable = *(void***)context;
 
-                if (hookMap) {
+                if (s_afterResourceMap.size()) {
                     s_dcVftable.Detour<ID3D11DeviceContext_Map_t>(DeviceContextMap, &s_deviceContextMap);
                 }
 
-                if (hookUnmap) {
+                if (s_beforeResourceUnmap.size()) {
                     s_dcVftable.Detour<ID3D11DeviceContext_Unmap_t>(DeviceContextUnmap, &s_deviceContextUnmap);
                 }
 
-                if (hookVsSetBuffers) {
+                if (s_afterVsSetConstantBuffers.size()) {
                     s_dcVftable.Detour<ID3D11DeviceContext_VSSetConstantBuffers_t>(DeviceContextVsSetConstantBuffers, &s_deviceContextVsSetConstantBuffers);
                 }
             }
@@ -199,7 +183,7 @@ namespace dx {
             if (!s_scVftable.IsValid()) {
                 s_scVftable = *(void***)swapChain;
 
-                if (hookResize) {
+                if (s_afterViewportResize.size()) {
                     s_scVftable.Detour<IDXGISwapChain_ResizeBuffers_t>(SwapChainResizeBuffers, &s_swapChainResizeBuffers);
                 }
             }
@@ -207,20 +191,17 @@ namespace dx {
             ERR("No swap chain");
         }
 
-        // Invoke DeviceCreate and Resize callbacks, in that order. This ensures that DeviceCreate
-        // callbacks don't rely on the size being readily available, in case Bethesda ever changes
-        // their mind about passing in the swap chain desc.
-        if (!pSwapChainDesc) {
-            ERR("Can't determine initial buffer sizes, no swap chain desc passed");
+        // Invoke DeviceCreate and Resize callbacks, in that order.
+        for (auto cb : s_afterDeviceCreate) {
+            cb(context, device, swapChain);
         }
 
-        for (auto& cb : s_callbacks) {
-            if (cb.afterDeviceCreate) {
-                cb.afterDeviceCreate(context, device, swapChain);
+        if (swapChain) {
+            for (auto cb : s_afterViewportResize) {
+                cb(pSwapChainDesc->BufferDesc.Width, pSwapChainDesc->BufferDesc.Height);
             }
-            if (cb.afterViewportResize && pSwapChainDesc) {
-                cb.afterViewportResize(pSwapChainDesc->BufferDesc.Width, pSwapChainDesc->BufferDesc.Height);
-            }
+        } else {
+            ERR("Can't determine initial buffer sizes, no swap chain desc passed");
         }
 
         // Forward the interfaces we stole. ◔_◔
@@ -252,7 +233,21 @@ namespace dx {
 
     void Register (const Callbacks& callbacks)
     {
-        s_callbacks.emplace_back(callbacks);
+        if (callbacks.afterDeviceCreate) {
+            s_afterDeviceCreate.emplace_back(callbacks.afterDeviceCreate);
+        }
+        if (callbacks.afterResourceMap) {
+            s_afterResourceMap.emplace_back(callbacks.afterResourceMap);
+        }
+        if (callbacks.beforeResourceUnmap) {
+            s_beforeResourceUnmap.emplace_back(callbacks.beforeResourceUnmap);
+        }
+        if (callbacks.afterViewportResize) {
+            s_afterViewportResize.emplace_back(callbacks.afterViewportResize);
+        }
+        if (callbacks.afterVsSetConstantBuffers) {
+            s_afterVsSetConstantBuffers.emplace_back(callbacks.afterVsSetConstantBuffers);
+        }
     }
 
     void Init ()
