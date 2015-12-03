@@ -19,17 +19,17 @@ effortless. Simply drop the dll in the game folder to get started. See the
 
 ## Building
 
-MSVC is the only supported compiler, and Visual Studio 2015 *may* be required as
-I've made no effort to support older versions. Compiling should just be a matter
-of opening the solution and building. All the dependencies are embedded in the
-project.
+MSVC is the only supported compiler, and Visual Studio 2015 is likely required
+as I've made no effort to support older versions. Compiling should just be a
+matter of opening the solution and building. All the dependencies are embedded
+in the project.
 
 ## Configuration
 
 FO4-Wrench is configured through a [TOML](/toml-lang/toml) file named
-**Wrench.toml** inside your **Documents\My Games\Fallout4** configuration
-folder. If that folder does not exist, either create it or simply launch the
-game as that will create it for you. All configuration options are optional.
+**Wrench.toml** inside your **Documents\My Games\Fallout4** folder. If that
+folder does not exist, either create it or simply launch the game as that will
+create it for you. All configuration options are optional.
 
 * **XInput.Path**
   > The path to the *real* XInput1_3.dll.
@@ -43,25 +43,29 @@ game as that will create it for you. All configuration options are optional.
 * **UiScale.`filename`**:
   > The scale mode to use for the UI clip with the given `filename`. The path
     should use forward slashes, not backslashes. Requires UI clip scaling to
-    be enabled. Possible options are:
+    be enabled. You may inspect the **Wrench.log** file next to the
+    configuration file for the possible file names, and their current scale
+    mode. Please note that file names are case sensitive.
 
-    * `"NoScale"`: No scaling, the UI clip's native size will be used.
-    * `"ShowAll"`: Resize the UI clip to fill the viewport, while maintaining
+  > Possible options are:
+
+  > * `"NoScale"`: No scaling, the UI clip's native size will be used.
+  > * `"ShowAll"`: Resize the UI clip to fill the viewport, while maintaining
       aspect ratio. No clipping is applied, so UI clips may use the full
       viewport size.
-    * `"ExactFit"`: Resize the UI clip, disregarding the aspect ratio. If the
+  > * `"ExactFit"`: Resize the UI clip, disregarding the aspect ratio. If the
       clip's aspect ratio is not the same as that of the viewport, it will be
       stretched to cover the viewport.
-    * `"NoBorder"`: Resize the UI clip to fill the viewport, while
+ > * `"NoBorder"`: Resize the UI clip to fill the viewport, while
       maintaining aspect ratio. Contents outside the normal aspect ratio may be
       clipped.
 
 ### Default configuration
 
 Note that the below values are used by default even when not specified. You only
-need to specify them to override them. Also note that UI scale modes are
-particularly lacking in this list. They all use the game's default unless
-overridden.
+need to specify them in the config file if you want to override them. Also note
+that UI scale modes are particularly lacking in this list. They all use the
+game's defaults unless specifically overridden.
 
 ```toml
 [XInput]
