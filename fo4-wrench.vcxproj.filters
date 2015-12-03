@@ -86,7 +86,7 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="XInput1_3.def" />
+    <None Include="fo4-wrench.def" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="3rdparty">
