@@ -20,9 +20,11 @@ effortless. Simply drop the dll in the game folder to get started. See the
 ## Building
 
 MSVC is the only supported compiler, and Visual Studio 2015 is likely required
-as I've made no effort to support older versions. Compiling should just be a
-matter of opening the solution and building. All the dependencies are embedded
-in the project.
+as I've made no effort to support older versions. You will need a version of the
+Windows SDK that comes with DX11 headers (it should have been included in the
+Visual Studio install). Compiling should just be a matter of opening the
+solution and building. All the remaining dependencies are embedded in the
+project.
 
 ## Configuration
 
