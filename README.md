@@ -1,7 +1,7 @@
 # FO4-Wrench
 
-FO4-Wrench is a configurable mod for Fallout 4, containing fixes and behavior
-modifications.
+FO4-Wrench is a configurable mod for Fallout 4, with fixes and behavior
+modifications mainly for odd aspect ratios.
 
 * Adds options for modifying scaling behavior of each individual UI clip.
   This fixes scaling for most of the default UI elements in non-16:9 aspect
