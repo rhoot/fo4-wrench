@@ -2,6 +2,7 @@ bin/
 build/
 ipch/
 lib/
+*.opendb
 *.opensdf
 *.sdf
 *.suo
