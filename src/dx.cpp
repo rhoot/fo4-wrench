@@ -126,6 +126,8 @@ namespace dx {
                                                     D3D_FEATURE_LEVEL*          pFeatureLevel,
                                                     ID3D11DeviceContext**       ppImmediateContext)
     {
+        ScopedTimer timer("CreateDevice hook: %u.%u ms");
+
         ID3D11DeviceContext* context = nullptr;
         ID3D11Device* device = nullptr;
         IDXGISwapChain* swapChain = nullptr;

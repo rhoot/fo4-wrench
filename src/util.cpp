@@ -53,6 +53,26 @@ namespace logging {
 
 
 ///
+// Scoped timer
+///
+
+ScopedTimer::ScopedTimer (const char fmt[])
+    : m_fmt(fmt)
+{
+    static_assert(sizeof(m_start) == sizeof(LARGE_INTEGER), "invalid cast");
+    QueryPerformanceCounter((LARGE_INTEGER*)&m_start);
+}
+
+ScopedTimer::~ScopedTimer ()
+{
+    uint64_t end, freq;
+    QueryPerformanceCounter((LARGE_INTEGER*)&end);
+    QueryPerformanceFrequency((LARGE_INTEGER*)&freq);
+    auto microsec = (end - m_start) / (freq / 1000000);
+    LOG(m_fmt, microsec / 1000, microsec % 1000);
+}
+
+///
 // Misc
 ///
 
@@ -78,7 +98,8 @@ void LogAsm (void* addr, size_t size)
     LOG("%u instructions, %llu bytes", count, ud_insn_off(&ud));
 }
 
-void LogCallstack (const char func[], size_t count) {
+void LogCallstack (const char func[], size_t count)
+{
     void* stack[64];
     auto max = min(count, ArraySize(stack));
     auto size = CaptureStackBackTrace(1, (DWORD)max, stack, nullptr);

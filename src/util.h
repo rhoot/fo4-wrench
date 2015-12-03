@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include <cstdint>
+
 ///
 // Logging
 ///
@@ -37,7 +39,7 @@ class UnsafePtr
         UnsafePtr& operator= (const T* ptr);
         UnsafePtr& operator= (const UnsafePtr& other);
 
-        operator bool () const;
+        operator bool() const;
 
         friend bool operator== (const UnsafePtr& a, const UnsafePtr& b);
         friend bool operator!= (const UnsafePtr& a, const UnsafePtr& b);
@@ -75,7 +77,8 @@ UnsafePtr<T>& UnsafePtr<T>::operator= (const UnsafePtr& other)
 }
 
 template <class T>
-UnsafePtr<T>::operator bool () const {
+UnsafePtr<T>::operator bool () const
+{
     return m_ptr != nullptr;
 }
 
@@ -105,6 +108,21 @@ bool operator!= (const UnsafePtr<T>& a, const U* b)
 
 
 ///
+// Scoped timer
+///
+
+class ScopedTimer
+{
+    uint64_t m_start;
+    const char* m_fmt;
+
+    public:
+        ScopedTimer (const char fmt[]);
+        ~ScopedTimer ();
+};
+
+
+///
 // Misc
 ///
 
@@ -131,7 +149,8 @@ size_t strlcpy (char* dst, const char* src, size_t dsize);
 //  - Does not support infinities or NaN
 //  - Few, partially pipelinable, non-branching instructions,
 //  - Core opreations ~6 clock cycles on modern x86-64
-inline void float32 (float* __restrict out, const uint16_t in) {
+inline void float32 (float* __restrict out, const uint16_t in)
+{
     uint32_t t1;
     uint32_t t2;
     uint32_t t3;
@@ -161,7 +180,8 @@ inline void float32 (float* __restrict out, const uint16_t in) {
 //  - Does not support infinities or NaN
 //  - Few, partially pipelinable, non-branching instructions,
 //  - Core opreations ~10 clock cycles on modern x86-64
-inline void float16 (uint16_t* __restrict out, const float in) {
+inline void float16 (uint16_t* __restrict out, const float in)
+{
     uint32_t inu = *((uint32_t*)&in);
     uint32_t t1;
     uint32_t t2;

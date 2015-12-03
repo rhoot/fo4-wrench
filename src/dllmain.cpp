@@ -235,7 +235,7 @@ namespace backdrop {
             return;
         }
 
-        auto pattern = "\xE8\x00\x00\x00\x00"           // call ????????
+        auto pattern = "\xE8\x00\x00\x00\x00"            // call ????????
                        "\x48\x8D\x05\x00\x00\x00\x00"    // lea  rax, ????????
                        "\xC6\x87\x58\x01\x00\x00\x03"    // mov  byte ptr [rdi+158h], 3
                        "\x48\x89\x07"                    // mov  [rdi], rax
@@ -359,7 +359,8 @@ BOOL APIENTRY DllMain (HMODULE hModule,
                        LPVOID  lpReserved)
 {
     switch (ul_reason_for_call) {
-        case DLL_PROCESS_ATTACH:
+        case DLL_PROCESS_ATTACH: {
+            ScopedTimer timer("Started in %u.%u ms");
             InitLog();
             InitConfig();
 
@@ -370,6 +371,7 @@ BOOL APIENTRY DllMain (HMODULE hModule,
             // already registered for callbacks.
             dx::Init();
             break;
+        }
 
         case DLL_PROCESS_DETACH:
             logging::Close();
