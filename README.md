@@ -102,16 +102,16 @@ UiScale = true
 Default main menu in 21:9.
 
 ![](doc/mainmenu-modded.jpg)
-Default main menu in 21:9, with this mod in the recommended configuration.
+Default main menu in 21:9, with this mod in the default configuration.
 
 ![](doc/hud-default.jpg)
 Default HUD in 21:9.
 
 ![](doc/hud-modded.jpg)
-Default HUD in 21:9, with this mod in the recommended configuration.
+Default HUD in 21:9, with this mod in the default configuration.
 
 ![](doc/container-default.jpg)
 Default container UI in 21:9.
 
 ![](doc/container-modded.jpg)
-Default container UI in 21:9, with this mod in the recommended configuration.
+Default container UI in 21:9, with this mod in the default configuration.
