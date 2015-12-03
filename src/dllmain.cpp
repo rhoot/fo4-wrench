@@ -60,7 +60,7 @@ namespace uiscale {
 
     static const char* ViewScaleName (ViewScaleMode mode)
     {
-        return ((size_t)mode < ArraySize(s_names))
+        return (size_t)mode < ArraySize(s_names)
                ? s_names[(size_t)mode]
                : nullptr;
     }
@@ -107,10 +107,10 @@ namespace uiscale {
         s_movieSetViewScaleMode(movie, newMode);
     }
 
-    static void OnDeviceCreate (ID3D11DeviceContext* context, ID3D11Device* device, IDXGISwapChain* swapChain)
+    static void OnDeviceCreate (ID3D11DeviceContext*, ID3D11Device*, IDXGISwapChain*)
     {
         const auto imageBase = (uintptr_t)GetModuleHandleA(nullptr);
-        const auto text = hooks::FindSection(".text", 5);
+        const auto text = hooks::FindSection(".text");
 
         if (text) {
             const auto textStart = imageBase + text->VirtualAddress;
@@ -134,7 +134,7 @@ namespace uiscale {
                 auto vtable = (void**)(rip + offset);
 
                 hooks::VfTable vftable(vtable);
-                vftable.Hook<Movie::SetViewScaleMode>(MovieSetViewScaleMode, &s_movieSetViewScaleMode);
+                vftable.Inject<Movie::SetViewScaleMode>(MovieSetViewScaleMode, &s_movieSetViewScaleMode);
             } else {
                 ERR("Could not locate the Movie constructor");
             }
@@ -228,7 +228,7 @@ namespace backdrop {
     static void OnDeviceCreate (ID3D11DeviceContext*, ID3D11Device*, IDXGISwapChain*)
     {
         auto imageBase = GetModuleHandleA(nullptr);
-        auto segment = hooks::FindSection(".text", 5);
+        auto segment = hooks::FindSection(".text");
 
         if (!segment) {
             ERR("No .text segment found?");
@@ -258,7 +258,7 @@ namespace backdrop {
         auto rip = location + 12;
         auto rva = *(int32_t*)(location + 8);
         hooks::VfTable vtable = (void**)(rip + rva);
-        vtable.Hook<BSTriShape_Parse_t>(BSTriShapeParse, &s_origTriShapeParse);
+        vtable.Inject<BSTriShape_Parse_t>(BSTriShapeParse, &s_origTriShapeParse);
     }
 
 
@@ -358,6 +358,8 @@ BOOL APIENTRY DllMain (HMODULE hModule,
                        DWORD   ul_reason_for_call,
                        LPVOID  lpReserved)
 {
+    REF(hModule, lpReserved);
+
     switch (ul_reason_for_call) {
         case DLL_PROCESS_ATTACH: {
             ScopedTimer timer("Started in %u.%u ms");

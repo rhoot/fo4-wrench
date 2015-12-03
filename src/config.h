@@ -3,11 +3,13 @@
 
 #pragma once
 
+#include "util.h"
+
 namespace config {
 
     struct Enumerator {
-        virtual void OnBool (const char* const path[], size_t count, bool value) { }
-        virtual void OnString (const char* const path[], size_t count, const char str[]) { }
+        virtual void OnBool (const char* const path[], size_t count, bool value) { REF(path, count, value); }
+        virtual void OnString (const char* const path[], size_t count, const char str[]) { REF(path, count, str); }
     };
 
     enum class ValueType {

@@ -60,7 +60,7 @@ namespace hooks {
         std::vector<DetourBuffer> m_detours;
 
         void Detour (size_t index, void* replacement, void** prev);
-        void Hook (size_t index, void* replacement, void** prev);
+        void Inject (size_t index, void* replacement, void** prev);
 
         public:
             VfTable ();
@@ -75,9 +75,9 @@ namespace hooks {
             }
 
             template <class F>
-            void Hook (typename F::Fn* replacement, typename F::Fn** prev)
+            void Inject (typename F::Fn* replacement, typename F::Fn** prev)
             {
-                Hook(F::INDEX, (void*)replacement, (void**)prev);
+                Inject(F::INDEX, (void*)replacement, (void**)prev);
             }
 
             template <class F, class... Args>
@@ -94,6 +94,6 @@ namespace hooks {
     ///
 
     uintptr_t FindPattern (uintptr_t address, uintptr_t term, const char* data, const char* sMask);
-    struct _IMAGE_SECTION_HEADER* FindSection (const char* name, size_t length);
+    struct _IMAGE_SECTION_HEADER* FindSection (const char* name);
 
 } // namespace hooks

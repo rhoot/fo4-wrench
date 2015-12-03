@@ -5,6 +5,8 @@
 
 #include <cstdint>
 
+#define REF(...) (void)(__VA_ARGS__)
+
 ///
 // Logging
 ///
@@ -202,5 +204,5 @@ inline void float16 (uint16_t* __restrict out, const float in)
 
     t1 |= t2;                              // Re-insert sign bit
 
-    *((uint16_t*)out) = t1;
+    *(uint16_t*)out = (uint16_t)t1;
 };

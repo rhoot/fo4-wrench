@@ -219,7 +219,7 @@ namespace hooks {
         m_detours.emplace_back(std::move(buffer));
     }
 
-    void VfTable::Hook (size_t index, void* replacement, void** prev)
+    void VfTable::Inject (size_t index, void* replacement, void** prev)
     {
         const auto addr = m_vftable + index;
         DWORD prevProtection;
@@ -261,8 +261,7 @@ namespace hooks {
         return 0;
     }
 
-    struct _IMAGE_SECTION_HEADER* FindSection (const char* name,
-                                               size_t      length)
+    struct _IMAGE_SECTION_HEADER* FindSection (const char* name)
     {
         auto imageBase = GetModuleHandleA(nullptr);
         auto dosHeader = (const IMAGE_DOS_HEADER*)imageBase;

@@ -89,21 +89,6 @@ namespace config {
         return false;
     }
 
-    static bool GetRawValue (ValueType type, const std::shared_ptr<cpptoml::base>& value, const void** raw)
-    {
-        switch (type) {
-            case ValueType::Bool:
-                *raw = &(value->as<bool>()->get());
-                return true;
-
-            case ValueType::String:
-                *raw = value->as<std::string>()->get().c_str();
-                return true;
-        }
-
-        return false;
-    }
-
     ///
     // Parser
     ///

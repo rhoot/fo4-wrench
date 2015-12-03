@@ -5,6 +5,7 @@
 
 #pragma warning(push)
 #pragma warning(disable:4091) // 'typedef ': ignored on left of '' when no variable is declared
+#pragma warning(disable:4456) // declaration of 'identifier' hides previous local declaration
 
 // Windows headers
 #define WIN32_LEAN_AND_MEAN
@@ -28,4 +29,3 @@
 #include <udis86.h>
 
 #pragma warning(pop)
-
