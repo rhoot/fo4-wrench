@@ -15,6 +15,9 @@ the XInput dll, and the XInput API is tiny enough that wrapping it is just about
 effortless. Simply drop the dll in the game folder to get started. See the
 [configuration section](#configuration) for fine-tuning.
 
+Note that since this mod only changes native behavior and no assets, it should
+be compatible with any mods that don't modify the game in the same way.
+
 [Screenshots](#screenshots)
 
 ## Building
