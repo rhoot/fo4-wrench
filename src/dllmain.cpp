@@ -170,13 +170,52 @@ namespace uiscale {
 
 namespace backdrop {
 
-    using BSTriShape_Parse_t = hooks::Function<27, bool(uintptr_t, uintptr_t)>;
+    struct StringData {
+        uint8_t padding1[16];
+        size_t length;
+        char str[1];
+    };
+
+    struct ReaderStream {
+        uint8_t padding1[0x28];
+        StringData* filename;
+    };
+
+    struct BSResourceNiBinaryStream {
+        uint8_t padding1[16];
+        ReaderStream* stream;
+    };
+
+    struct BSStream {
+        uint8_t padding1[0x398];
+        BSResourceNiBinaryStream* resource;
+    };
+
+    struct BufferData {
+        uint8_t padding1[8];
+        uint8_t* data;
+    };
+
+    struct TriShapeBuffers {
+        uint8_t padding1[8];
+        BufferData* vertexBuffer;
+    };
+
+    struct BSTriShape {
+        using Parse_t = hooks::Function<27, bool(BSTriShape&, BSStream&)>;
+
+        uint8_t padding1[0x148];
+        TriShapeBuffers* buffers;
+        uint8_t padding2[20];
+        uint32_t numVerts;
+    };
+
 
     ///
     // Data
     ///
 
-    static BSTriShape_Parse_t::Fn* s_origTriShapeParse;
+    static BSTriShape::Parse_t::Fn* s_origTriShapeParse;
     static float s_scale = 1.0f;
 
 
@@ -193,27 +232,17 @@ namespace backdrop {
     }
 
 
-    static bool BSTriShapeParse (uintptr_t shape, uintptr_t stream)
+    static bool BSTriShapeParse (BSTriShape& shape, BSStream& stream)
     {
-        auto resource = *(uintptr_t*)(stream + 0x398);
-        auto reader = *(uintptr_t*)(resource + 0x10);
-        auto nameData = *(uintptr_t*)(reader + 0x28);
-        auto nameLen = *(uint32_t*)(nameData + 0x10);
-        auto nameStr = (const char*)(nameData + 0x18);
         auto result = s_origTriShapeParse(shape, stream);
 
-        if (result && strncmp("Meshes\\Interface\\Objects\\HUDGlassFlat.nif", nameStr, nameLen) == 0) {
-            auto buffers = *(uintptr_t*)(shape + 0x148);
-            auto verts = *(uint32_t*)(shape + 0x164);
-            auto vertexBuffer = *(uintptr_t*)(buffers + 8);
-            auto vertexData = *(uintptr_t*)(vertexBuffer + 8);
+        if (result && shape.numVerts == 4) {
+            const auto filename = stream.resource->stream->filename;
+            const auto isHudGlass = strncmp("Meshes\\Interface\\Objects\\HUDGlassFlat.nif", filename->str, filename->length) == 0;
 
-            // Sanity check
-            if (verts != 4) {
-                ERR("Could not apply the backdrop fix, wrong amount of mesh vertices");
-            } else {
+            if (isHudGlass) {
                 for (auto i = 0; i < 4; ++i) {
-                    auto x = (uint16_t*)(vertexData + i * 20);
+                    auto x = (uint16_t*)(shape.buffers->vertexBuffer->data + i * 20);
                     float f;
                     float32(&f, *x);
                     float16(x, f * s_scale);
@@ -258,7 +287,7 @@ namespace backdrop {
         auto rip = location + 12;
         auto rva = *(int32_t*)(location + 8);
         hooks::VfTable vtable = (void**)(rip + rva);
-        vtable.Inject<BSTriShape_Parse_t>(BSTriShapeParse, &s_origTriShapeParse);
+        vtable.Inject<BSTriShape::Parse_t>(BSTriShapeParse, &s_origTriShapeParse);
     }
 
 
