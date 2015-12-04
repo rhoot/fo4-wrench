@@ -52,7 +52,7 @@ extern "C" {
         s_powerOffController = nullptr;
 
         if (s_xinput) {
-            CloseHandle(s_xinput);
+            FreeLibrary(s_xinput);
             s_xinput = nullptr;
         }
     }
